@@ -3,6 +3,8 @@ use std::str::FromStr;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
+
 use crate::error::Error;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -71,6 +73,21 @@ mod object_id_string {
     {
         let s = String::deserialize(deserializer)?;
         s.parse().map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FormattedDateTime(#[serde(with = "time::serde::rfc3339")] OffsetDateTime);
+
+impl From<bson::DateTime> for FormattedDateTime {
+    fn from(value: bson::DateTime) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<OffsetDateTime> for FormattedDateTime {
+    fn from(value: OffsetDateTime) -> Self {
+        Self(value)
     }
 }
 
