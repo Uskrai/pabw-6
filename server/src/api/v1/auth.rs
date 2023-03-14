@@ -282,6 +282,22 @@ pub async fn login(
     ))
 }
 
+pub async fn logout(
+    State(RefreshTokenCollection(refresh_tokens)): State<RefreshTokenCollection>,
+    RefreshClaim(claim, _): RefreshClaim,
+) -> Result<(), Error> {
+    let _m = refresh_tokens
+        .find_one(bson::doc! { "_id": claim.sub }, None)
+        .await?
+        .ok_or_else(|| Error::Unauthorized(UnauthorizedType::InvalidRefreshToken))?;
+
+    refresh_tokens
+        .delete_one(bson::doc! { "_id": claim.sub }, None)
+        .await?;
+
+    Ok(())
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RefreshAccessTokenResponse {
     pub access_token: String,

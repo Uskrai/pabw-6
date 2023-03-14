@@ -3,6 +3,7 @@ use std::str::FromStr;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use bson::oid::ObjectId;
 use num_bigint::BigInt;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
@@ -209,6 +210,138 @@ impl<'de> Deserialize<'de> for BigIntString {
                 E: serde::de::Error,
             {
                 BigInt::from_str(v)
+                    .map(Into::into)
+                    .map_err(serde::de::Error::custom)
+            }
+
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                self.visit_str(&v)
+            }
+        }
+
+        deserializer.deserialize_any(Visitor)
+    }
+}
+
+pub struct DecimalString(pub Decimal);
+
+impl From<Decimal> for DecimalString {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+impl From<DecimalString> for Decimal {
+    fn from(value: DecimalString) -> Self {
+        value.0
+    }
+}
+
+impl Serialize for DecimalString {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.0.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for DecimalString {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        pub struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = DecimalString;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a string of decimal or integer")
+            }
+
+            fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Decimal::from(v).into())
+            }
+
+            fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Decimal::from(v).into())
+            }
+
+            fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Decimal::from(v).into())
+            }
+
+            fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Decimal::from(v).into())
+            }
+
+            fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Decimal::from(v).into())
+            }
+
+            fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Decimal::from(v).into())
+            }
+
+            fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Decimal::from(v).into())
+            }
+
+            fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Decimal::from(v).into())
+            }
+
+            fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Decimal::try_from(v)
+                    .map(Into::into)
+                    .map_err(serde::de::Error::custom)
+            }
+
+            fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Decimal::try_from(v)
+                    .map(Into::into)
+                    .map_err(serde::de::Error::custom)
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Decimal::from_str(v)
                     .map(Into::into)
                     .map_err(serde::de::Error::custom)
             }

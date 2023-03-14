@@ -23,6 +23,7 @@ async fn main() {
                 "/auth",
                 Router::new()
                     .route("/login", routing::post(ecommerce::api::v1::auth::login))
+                    .route("/logout", routing::post(ecommerce::api::v1::auth::logout))
                     .route(
                         "/register",
                         routing::post(ecommerce::api::v1::auth::register),
