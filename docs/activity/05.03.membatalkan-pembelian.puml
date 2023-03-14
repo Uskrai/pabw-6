@@ -1,0 +1,25 @@
+@startuml
+title Membatalkan Pembelian Barang
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman status pembelian barang;
+|S|
+:Mengambil data pembelian;
+|D|
+:Mengirim data pembelian;
+|S|
+:Menampilkan halaman status pembelian;
+|U|
+:Menekan tombol batalkan pembelian;
+|S|
+:Mengecek status pengiriman;
+if (Sudah dikirim?) then (yes)
+  :Menampilkan gagal membatalkan pembelian; 
+else
+  :Menampilkan berhasil membatalkan pembelian; 
+endif
+stop
+@enduml

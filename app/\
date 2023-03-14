@@ -1,0 +1,15 @@
+import Card from "@mui/material/Card";
+import CardActions from "@mui/material/CardActions";
+import CardContent from "@mui/material/CardContent";
+import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
+import axios from "axios";
+import { Link, useParams } from "react-router-dom";
+import useSWR from "swr";
+import { Product } from "../../models/Product";
+
+export default function EditProduct() {
+  let { id } = useParams();
+
+  return <Form />
+}

@@ -1,0 +1,30 @@
+@startuml
+title Menyunting Barang
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman barang;
+|S|
+:Mengambil data barang;
+|D|
+:Mengirim data barang;
+|S|
+:Membuka halaman for menyunting barang;
+|S|
+:Menampilkan halaman form menyunting barang;
+|U|
+:Mengisi form menyunting barang;
+|S|
+:Menyunting barang dari database;
+|D|
+:Menyunting barang;
+|S|
+if (Menyunting berhasil?) then (yes)
+  :Menampilkan berhasil menyunting barang;
+else (no)
+  :Menampilkan  gagal menyunting barang;
+endif
+
+stop

@@ -311,12 +311,10 @@ pub async fn refresh_access_token(
     State(argon): State<Argon2<'static>>,
     RefreshClaim(claim, refresh_token): RefreshClaim,
 ) -> Result<Json<RefreshAccessTokenResponse>, Error> {
-    dbg!(&refresh_token, &claim);
     let model = refresh_tokens
         .find_one(bson::doc! { "_id": claim.sub }, None)
         .await?
         .ok_or_else(|| Error::Unauthorized(UnauthorizedType::InvalidRefreshToken))?;
-
 
     if !verify_password(&argon, &refresh_token, &model.token) {
         refresh_tokens

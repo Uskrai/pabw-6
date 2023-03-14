@@ -1,0 +1,28 @@
+@startuml
+title Membuat pengguna 
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman membuat pengguna;
+|S|
+:Menampilkan halaman membuat pengguna;
+|U|
+:Mengisi form membuat pengguna;
+|S|
+:Mengecek pengguna yang sama;
+|D|
+:Mengirim pengguna yang sama;
+|S|
+if (ada pengguna yang sama?) then (yes)
+  :Menampilkan gagal menambahkan pengguna;
+else
+  :Menambahkan pengguna ke database;
+  |D|
+  :Menyimpan pengguna;
+  |S|
+  :Menampilkan berhasil menambahkan pengguna;
+endif
+
+stop

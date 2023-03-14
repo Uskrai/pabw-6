@@ -1,0 +1,30 @@
+@startuml
+title Menyunting pengguna
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman pengguna;
+|S|
+:Mengambil data pengguna;
+|D|
+:Mengirim data pengguna;
+|S|
+:Membuka halaman for menyunting pengguna;
+|S|
+:Menampilkan halaman form menyunting pengguna;
+|U|
+:Mengisi form menyunting pengguna;
+|S|
+:Menyunting pengguna dari database;
+|D|
+:Menyunting pengguna;
+|S|
+if (Menyunting berhasil?) then (yes)
+  :Menampilkan berhasil menyunting pengguna;
+else (no)
+  :Menampilkan  gagal menyunting pengguna;
+endif
+
+stop

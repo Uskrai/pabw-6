@@ -1,0 +1,29 @@
+@startuml
+title Menghapus Barang
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman barang;
+|S|
+:Mengambil data barang;
+|D|
+:Mengirim data barang;
+|S|
+:Menampilkan halaman barang;
+|U|
+:Menekan tombol hapus barang;
+|S|
+:Menghapus barang dari database;
+|D|
+:Menghapus barang;
+|S|
+if (Hapus berhasil?) then (yes)
+  :Menampilkan berhasil menghapus barang;
+else (no)
+  :Menampilkan  gagal menghapus barang;
+endif
+
+stop
+@enduml

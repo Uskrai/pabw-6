@@ -1,0 +1,16 @@
+@startuml
+title Melihat Status Barang
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman status pembelian barang;
+|S|
+:Mengambil data pembelian;
+|D|
+:Mengirim data pembelian;
+|S|
+:Menampilkan halaman status pembelian;
+stop
+@enduml

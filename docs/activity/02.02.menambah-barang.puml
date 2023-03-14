@@ -1,0 +1,25 @@
+@startuml
+title Menambah Barang
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman membuat barang;
+|S|
+:Menampilkan halaman membuat barang;
+|U|
+:Mengisi form membuat barang;
+|S|
+:Menambahkan barang ke database;
+|D|
+:Menyimpan barang;
+|S|
+if (Menambah berhasil?) then (yes)
+  :Menampilkan berhasil menambahkan barang;
+else (no)
+  :Menampilkan  gagal menambahkan barang;
+endif
+
+stop
+@enduml

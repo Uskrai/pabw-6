@@ -1,0 +1,28 @@
+@startuml
+title Register
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman register;
+|S|
+:Menampilkan halaman register;
+|U|
+:Mengisi form register;
+|S|
+:Mengecek akun yang ada;
+|D|
+:Mengirim akun yang sama;
+|S|
+if (Ada akun yang sama?) then (yes)
+  :Menampilkan registrasi gagal;
+else (no)
+  :Memasukkan user;
+  |D|
+  :Menyimpan User;
+  |S|
+  :Menampilkan Registrasi berhasil;
+endif
+
+stop

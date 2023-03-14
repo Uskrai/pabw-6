@@ -3,6 +3,10 @@ use std::str::FromStr;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use bson::oid::ObjectId;
 use num_bigint::BigInt;
+<<<<<<< Updated upstream:server/src/util.rs
+=======
+use rust_decimal::Decimal;
+>>>>>>> Stashed changes:src/util.rs
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 

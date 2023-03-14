@@ -1,0 +1,29 @@
+@startuml
+title Menghapus Barang dari keranjang
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman keranjang;
+|S|
+:Mengambil data keranjang;
+|D|
+:Mengirim data keranjang;
+|S|
+:Menampilkan halaman keranjang;
+|U|
+:Menekan tombol hapus barang;
+|S|
+:Menghapus barang dari keranjang di database;
+|D|
+:Menyimpan keranjang;
+|S|
+if (Hapus berhasil?) then (yes)
+  :Menampilkan berhasil menghapus barang dari keranjang;
+else (no)
+  :Menampilkan gagal menghapus barang dari keranjang;
+endif
+
+stop
+@enduml
