@@ -6,13 +6,13 @@ use axum::{
     Json, RequestPartsExt, TypedHeader,
 };
 use bson::oid::ObjectId;
-use mongodb::Collection;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use validator::Validate;
 
 use crate::{
     error::{Error, UnauthorizedType},
+    mongo_ext::Collection,
     util::{hash_password, verify_password, FormattedDateTime, ObjectIdString},
 };
 
@@ -23,6 +23,20 @@ use super::token::{
 
 #[derive(Clone)]
 pub struct UserCollection(pub Collection<UserModel>);
+
+impl std::ops::DerefMut for UserCollection {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl std::ops::Deref for UserCollection {
+    type Target = Collection<UserModel>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserModel {
@@ -311,12 +325,10 @@ pub async fn refresh_access_token(
     State(argon): State<Argon2<'static>>,
     RefreshClaim(claim, refresh_token): RefreshClaim,
 ) -> Result<Json<RefreshAccessTokenResponse>, Error> {
-    dbg!(&refresh_token, &claim);
     let model = refresh_tokens
         .find_one(bson::doc! { "_id": claim.sub }, None)
         .await?
         .ok_or_else(|| Error::Unauthorized(UnauthorizedType::InvalidRefreshToken))?;
-
 
     if !verify_password(&argon, &refresh_token, &model.token) {
         refresh_tokens

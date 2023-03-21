@@ -34,7 +34,7 @@ impl AppState {
 
             mongo_client,
             token_collection: RefreshTokenCollection(db.collection("refresh_tokens")),
-            user_collection: UserCollection(db.collection("users")),
+            user_collection: UserCollection(db.collection("users").into()),
             product_collection: ProductCollection(db.collection("products")),
         })
     }
