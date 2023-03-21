@@ -104,6 +104,7 @@ impl From<Error> for ErrorJson {
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
+        tracing::error!("error: {:?}", self);
         let status = match self {
             Self::Unauthorized(..) => StatusCode::UNAUTHORIZED,
             Self::ValidationError(..) | Self::MustUniqueError(..) => {
