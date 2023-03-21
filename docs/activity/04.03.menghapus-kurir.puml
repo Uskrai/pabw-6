@@ -1,0 +1,28 @@
+@startuml
+title Menghapus kurir
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman kurir;
+|S|
+:Mengambil data kurir;
+|D|
+:Mengirim data kurir;
+|S|
+:Menampilkan halaman kurir;
+|U|
+:Menekan tombol hapus kurir;
+|S|
+:Menghapus kurir dari database;
+|D|
+:Menghapus kurir;
+|S|
+if (Hapus berhasil?) then (yes)
+  :Menampilkan berhasil menghapus kurir;
+else (no)
+  :Menampilkan  gagal menghapus kurir;
+endif
+
+stop

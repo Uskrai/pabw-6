@@ -1,0 +1,28 @@
+@startuml
+title Membuat kurir 
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman membuat kurir;
+|S|
+:Menampilkan halaman membuat kurir;
+|U|
+:Mengisi form membuat kurir;
+|S|
+:Mengecek kurir yang sama;
+|D|
+:Mengirim kurir yang sama;
+|S|
+if (ada kurir yang sama?) then (yes)
+  :Menampilkan gagal menambahkan kurir;
+else
+  :Menambahkan kurir ke database;
+  |D|
+  :Menyimpan kurir;
+  |S|
+  :Menampilkan berhasil menambahkan kurir;
+endif
+
+stop

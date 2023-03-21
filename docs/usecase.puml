@@ -1,0 +1,151 @@
+@startuml
+' left to right direction
+skinparam linetype polyline
+skinparam WrapWidth 20
+
+
+actor Pengguna as U
+actor Kurir as K
+actor Admin as A
+
+A -r-------- K
+
+package Pengiriman {
+  usecase "Mengubah status pengiriman barang" as KU1
+  usecase "Melihat barang untuk dikirim" as KU2
+}
+' KU1 -[hidden]- AA1
+
+
+package Penjualan {
+  usecase "Menambahkan barang untuk dijual" as PJ1
+  usecase "Mengganti stok barang" as PJ2
+  usecase "Menyunting barang" as PJ3
+  usecase "Menghapus barang" as PJ4
+
+  PJ3 -[hidden]- PJ4
+  PJ1 -[hidden]- PJ2
+}
+
+package Pembelian {
+  together {
+    usecase "Melihat barang" as PB1
+    usecase "Membeli barang" as PB2
+    usecase "Membatalkan pembelian" as PB3
+    usecase "Melihat status pembelian barang" as PB4
+    usecase "Mengkonfirmasi barang diterima" as PB5
+  }
+
+  together {
+    usecase "Melihat isi keranjang" as PK1
+    usecase "Menambahkan barang ke keranjang" as PK2
+    usecase "Menghapus barang dari keranjang" as PK3
+    usecase "Membeli barang di keranjang" as PK4
+  }
+
+  PB1 -[hidden]d- PK3
+
+  PB2 ..> PB1 : extend
+  PB3 .> PB2 : extend
+  PB4 .> PB2 : extend
+  PB5 .d.> PB4 : extend
+  PK4 .> PB2 : include
+  PK4 .> PK1 : include
+  PK3 ..> PK1 : include
+  PK2 ...> PB1 : extend
+}
+
+PJ1 -[hidden]- PB1
+
+package E-Money {
+  usecase "Mengurangi saldo e-money" as EM1
+  usecase "Menambahkan saldo e-money" as EM2
+}
+
+package Akun {
+  usecase "Logout" as AA1
+  usecase "Ganti Password" as AA2
+
+  AA1 -[hidden]- AA2
+
+  together {
+    usecase "Melihat semua pengguna" as AP1
+    usecase "Menghapus pengguna" as AP2
+    usecase "Menyunting Pengguna" as AP3
+    usecase "Menambahkan pengguna" as AP4
+  }
+
+  together {
+    usecase "Melihat semua kurir" as AK1
+    usecase "Menghapus kurir" as AK2
+    usecase "Menyunting kurir" as AK3
+    usecase "Menambahkan kurir" as AK4
+  }
+
+  AP1 -[hidden]u- AK1
+  AP2 -[hidden]u- AK2
+  AP3 -[hidden]u- AK3
+  AP4 -[hidden]u- AK4
+}
+
+
+U --> PB1
+U --> PB2
+U --> PB3
+U --> PB4
+U --> PB5
+U --> PK1
+U --> PK2
+U --> PK3
+U --> PK4
+'
+U --> PJ1
+U --> PJ2
+U --> PJ3
+U --> PJ4
+
+' Akun --- Pembelian
+' K -[hidden]u----- Pembelian
+
+A -u--> AP1
+A -u--> AP2
+A -u--> AP3
+A -u--> AP4
+A -u--> AK1
+A -u--> AK2
+A -u--> AK3
+A -u--> AK4
+
+A -u--> EM1
+A -u--> EM2
+
+K -u--> KU1
+K -u--> KU2
+
+A -> AA1
+A -> AA2
+U -> AA1
+U -> AA2
+K -> AA1
+K -> AA2
+
+' K -l- U
+' Penjualan -- Pembelian
+
+A -u-----> PJ3
+A -u-----> PJ4
+
+'
+' K -[hidden]d- Pengiriman
+'
+' U -[hidden]u-- Pembelian
+' U -[hidden]u-- Penjualan
+'
+' Penjualan -[hidden]u-- Pembelian
+'
+' "E-Money" -u--- Akun
+'
+' Akun -u- Pembelian
+'
+'
+@enduml

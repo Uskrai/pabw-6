@@ -1,0 +1,29 @@
+@startuml
+title Mengkonfirmasi barang di terima
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman status pembelian barang;
+|S|
+:Mengambil data pembelian;
+|D|
+:Mengirim data pembelian;
+|S|
+:Menampilkan halaman status pembelian;
+|U|
+:Menekan tombol konfirmasi selesai;
+|S|
+:Mengecek status pengiriman barang;
+if (barang sudah sampai di tujuan?) then (no)
+  :Menampilkan gagal menghapus barang dari keranjang;
+else (yes)
+  :Mengganti status pengiriman barang ke diterima;
+  |D|
+  :Menyimpan status pembelian barang;
+  |S|
+  :Menampilkan berhasil menngkonfirmasi barang di terima;
+endif
+stop
+@enduml

@@ -1,0 +1,41 @@
+@startuml
+title Membeli Barang
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman barang;
+|S|
+:Mengambil data barang;
+|D|
+:Mengirim data barang;
+|S|
+:Menampilkan halaman barang;
+|U|
+:Menekan tombol beli barang;
+|S|
+:Mengecek stok barang;
+|D|
+:Mengirim stok barang;
+|S|
+if (Stok barang cukup?) then (no)
+  :Tampilkan barang gagal dibeli;
+else
+  if (Uang E-Money user cukup?) then (no)
+    :Tampilkan barang gagal dibeli;
+  else
+    :Kurangi stok barang;
+    |D|
+    :Simpan stok barang;
+    |S|
+    :Kurangi e-money user;
+    |D|
+    :Simpan e-money user;
+    |S|
+    :Tampilkan barang berhasil dibeli;
+  endif
+endif
+
+stop
+@enduml

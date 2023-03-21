@@ -1,0 +1,16 @@
+@startuml
+title Melihat semua kurir
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman semua kurir;
+|S|
+:Mengambil data semua kurir;
+|D|
+:Mengirim data semua kurir;
+|S|
+:Menampilkan data semua kurir;
+
+@enduml

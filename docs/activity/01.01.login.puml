@@ -1,0 +1,29 @@
+@startuml
+title Login
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka Halaman Login;
+|S|
+:Menampilkan Halaman Login;
+|U|
+:Mengisi Form Halaman Login;
+|S|
+:Mengambil Data User;
+|D|
+:Mengirim Data User;
+|S|
+:Mengecek kredensial user;
+if (Kredensial Benar?) then (yes)
+  :Menampilkan login berhasil;
+else (no)
+  :Menampilkan login gagal;
+endif
+
+stop
+
+
+
+@enduml

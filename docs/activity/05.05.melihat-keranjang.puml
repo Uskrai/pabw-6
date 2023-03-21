@@ -1,0 +1,16 @@
+@startuml
+title Melihat isi Keranjang
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman keranjang;
+|S|
+:Mengambil data keranjang;
+|D|
+:Mengirim data keranjang;
+|S|
+:Menampilkan halaman keranjang;
+stop
+@enduml

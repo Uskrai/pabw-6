@@ -1,0 +1,29 @@
+@startuml
+title Menambahkan barang ke keranjang
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman barang;
+|S|
+:Mengambil data barang;
+|D|
+:Mengirim data barang;
+|S|
+:Menampilkan halaman barang;
+|U|
+:Menekan tombol tambah ke keranjang;
+|S|
+:Menyimpan barang ke keranjang di database;
+|D|
+:Menyimpan keranjang;
+|S|
+:Menampilkan barang berhasil dimasukkan ke keranjang;
+if (berhasil memasukkan?) then (yes)
+  :Menampilkan berhasil memasukkan barang ke keranjang;
+else (no)
+  :Menampilkan gagal memasukkan barang ke keranjang;
+endif
+stop
+@enduml

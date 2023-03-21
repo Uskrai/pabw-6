@@ -1,0 +1,71 @@
+@startuml
+
+entity users {
+  id INT
+  ---
+  name VARCHAR(512)
+  email VARCHAR(255)
+  password VARCHAR(255)
+  role enum( "customer", "courier", "admin" )
+  balance INT
+}
+
+entity products {
+  id INT
+  user_id INT
+  ---
+  name VARCHAR(1024)
+  description TEXT
+  price FLOAT
+  stock INT
+}
+
+entity orders {
+  id INT
+  user_id INT
+  address_id INT
+  courier_id INT
+  ---
+  price INT
+  payment_status TEXT
+  delivery_status TEXT
+}
+
+entity order_products {
+  id INT
+  order_id INT
+  product_id INT
+  ---
+  price INT
+  quantity INT
+}
+
+entity carts {
+  id INT
+  user_id INT
+  product_id INT
+  ---
+  quantity INT
+}
+
+entity user_addresses {
+  id INT
+  user_id INT
+  --
+  address TEXT
+  latitude FLOAT
+  longitude FLOAT
+}
+
+carts }o--|| users
+carts }o--|| products
+orders }o--|| users
+orders ||--o{ order_products
+
+users ||--o{ user_addresses
+users ||-o{ products
+
+
+
+
+@enduml

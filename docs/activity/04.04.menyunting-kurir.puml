@@ -1,0 +1,30 @@
+@startuml
+title Menyunting kurir
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman kurir;
+|S|
+:Mengambil data kurir;
+|D|
+:Mengirim data kurir;
+|S|
+:Membuka halaman for menyunting kurir;
+|S|
+:Menampilkan halaman form menyunting kurir;
+|U|
+:Mengisi form menyunting kurir;
+|S|
+:Menyunting kurir dari database;
+|D|
+:Menyunting kurir;
+|S|
+if (Menyunting berhasil?) then (yes)
+  :Menampilkan berhasil menyunting kurir;
+else (no)
+  :Menampilkan  gagal menyunting kurir;
+endif
+
+stop

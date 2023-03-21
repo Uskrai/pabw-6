@@ -1,0 +1,28 @@
+@startuml
+title Menghapus pengguna
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman pengguna;
+|S|
+:Mengambil data pengguna;
+|D|
+:Mengirim data pengguna;
+|S|
+:Menampilkan halaman pengguna;
+|U|
+:Menekan tombol hapus pengguna;
+|S|
+:Menghapus pengguna dari database;
+|D|
+:Menghapus pengguna;
+|S|
+if (Hapus berhasil?) then (yes)
+  :Menampilkan berhasil menghapus pengguna;
+else (no)
+  :Menampilkan  gagal menghapus pengguna;
+endif
+
+stop

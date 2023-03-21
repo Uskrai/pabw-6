@@ -1,0 +1,42 @@
+@startuml
+title Menghapus Barang dari keranjang
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman keranjang;
+|S|
+:Mengambil data keranjang;
+|D|
+:Mengirim data keranjang;
+|S|
+:Menampilkan halaman keranjang;
+|U|
+:Menekan tombol beli;
+|S|
+:Mengecek stok barang;
+|D|
+:Mengirim stok barang;
+|S|
+if (Stok barang cukup?) then (no)
+  :Tampilkan barang gagal dibeli;
+else
+  if (Uang E-Money user cukup?) then (no)
+    :Tampilkan barang gagal dibeli;
+  else
+    :Kurangi stok barang;
+    |D|
+    :Simpan stok barang;
+    |S|
+    :Kurangi e-money user;
+    |D|
+    :Simpan e-money user;
+    |S|
+    :Tampilkan barang berhasil dibeli;
+  endif
+endif
+
+
+stop
+@enduml

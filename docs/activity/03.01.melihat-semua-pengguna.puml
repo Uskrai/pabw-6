@@ -1,0 +1,16 @@
+@startuml
+title Melihat semua pengguna
+|U| User
+|S| System
+|D| Database
+|U|
+start
+:Membuka halaman semua pengguna;
+|S|
+:Mengambil data semua pengguna;
+|D|
+:Mengirim data semua pengguna;
+|S|
+:Menampilkan data semua pengguna;
+
+@enduml
