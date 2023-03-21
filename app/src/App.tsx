@@ -8,8 +8,15 @@ import {
 import "./App.css";
 import { AuthContext } from "./context/User";
 import { useAuth, useProvidedAuth } from "./hooks/useAuth";
+import { useUser } from "./hooks/useUser";
+
+const Landing = React.lazy(() => import("./Landing"));
 const Login = React.lazy(() => import("./Login"));
 const Register = React.lazy(() => import("./pages/auth/Register"));
+const Account = React.lazy(() => import("./pages/account/Index"));
+const AccountShow = React.lazy(() => import("./pages/account/Show"));
+const AccountEdit =React.lazy(() => import("./pages/account/Edit"));
+const AccountCreate = React.lazy(() => import("./pages/account/Create"));
 const ProductIndex = React.lazy(() => import("./pages/product/Index"));
 const ProductShow = React.lazy(() => import("./pages/product/Show"));
 const ProductEdit = React.lazy(() => import("./pages/product/Edit"));
@@ -17,11 +24,12 @@ const ProductCreate  = React.lazy(() => import("./pages/product/Create"));
 
 interface ProtectedRouteProps extends React.PropsWithChildren {
   login: boolean;
+  role?: "Admin" | "Customer" | "Courier";
 }
-
 const ProtectedRoute = ({
   children,
   login: login,
+  role,
 }: ProtectedRouteProps) => {
   const auth = useAuth();
   const user = useUser();
@@ -35,9 +43,43 @@ const ProtectedRoute = ({
     return <Navigate to="/" />;
   }
 
+  if (role != undefined) {
+    if (user.isLoading) {
+      return <CircularProgress />;
+    }
+    if (user.user?.role !== role) {
+      return <Navigate to="/" />;
+    }
+  }
 
   return <>{children}</>;
 };
+
+const account = (role: "Customer" | "Courier") => {
+  return {
+    path: `/admin/account/${role.toLowerCase()}`,
+    element: (
+      <ProtectedRoute login={true} role="Admin">
+        <Account role={role} />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        path: `/admin/account/${role.toLowerCase()}/create`,
+        element: <AccountCreate />,
+      },
+      {
+        path: `/admin/account/${role.toLowerCase()}/:id`,
+        element: <AccountShow role={role}/>,
+      },
+      {
+        path: `/admin/account/${role.toLowerCase()}/:id/edit`,
+        element: <AccountEdit/>,
+      },
+    ],
+  };
+};
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -82,6 +124,8 @@ const router = createBrowserRouter([
       },
     ],
   },
+  account("Customer"),
+  account("Courier"),
 ]);
 
 const App = () => {
