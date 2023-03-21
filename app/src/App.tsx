@@ -10,9 +10,15 @@ import { AuthContext } from "./context/User";
 import { useAuth, useProvidedAuth } from "./hooks/useAuth";
 const Login = React.lazy(() => import("./Login"));
 const Register = React.lazy(() => import("./pages/auth/Register"));
+const ProductIndex = React.lazy(() => import("./pages/product/Index"));
+const ProductShow = React.lazy(() => import("./pages/product/Show"));
+const ProductEdit = React.lazy(() => import("./pages/product/Edit"));
+const ProductCreate  = React.lazy(() => import("./pages/product/Create"));
+
 interface ProtectedRouteProps extends React.PropsWithChildren {
   login: boolean;
 }
+
 const ProtectedRoute = ({
   children,
   login: login,
@@ -53,6 +59,28 @@ const router = createBrowserRouter([
         <Register />
       </ProtectedRoute>
     ),
+  },
+  {
+    path: "/product",
+    element: (
+      <ProtectedRoute login={true}>
+        <ProductIndex />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        path: "/product/:id",
+        element: <ProductShow />,
+      },
+      {
+        path: "/product/create",
+        element: <ProductCreate />,
+      },
+      {
+        path: "/product/:id/edit",
+        element: <ProductShow />,
+      },
+    ],
   },
 ]);
 
