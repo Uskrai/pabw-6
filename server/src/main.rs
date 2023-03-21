@@ -1,6 +1,6 @@
 use std::{collections::HashMap, net::SocketAddr};
 
-use axum::{extract::State, response::IntoResponse, routing, Router, handler::Handler};
+use axum::{extract::State, handler::Handler, response::IntoResponse, routing, Router};
 use ecommerce::app::AppState;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -42,6 +42,16 @@ async fn main() {
                     .route("/:id", routing::get(ecommerce::api::v1::product::show))
                     .route("/:id", routing::put(ecommerce::api::v1::product::update))
                     .route("/:id", routing::delete(ecommerce::api::v1::product::delete)),
+            )
+            .nest(
+                "/account",
+                Router::new()
+                    .route("/", routing::get(ecommerce::api::v1::account::index))
+                    .route("/", routing::post(ecommerce::api::v1::account::create))
+                    .route("/:id", routing::get(ecommerce::api::v1::account::show))
+                    .route("/:id", routing::put(ecommerce::api::v1::account::update))
+                    .route("/:id", routing::delete(ecommerce::api::v1::account::delete))
+
             ),
     );
 
