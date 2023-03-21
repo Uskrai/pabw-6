@@ -179,6 +179,9 @@ pub struct RegisterRequest {
 
     #[validate(length(min = 8, max = 64))]
     pub password: String,
+
+    #[validate(must_match = "password")]
+    pub confirm_password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -208,6 +211,7 @@ pub async fn register(
     State(argon): State<Argon2<'_>>,
     Json(request): Json<RegisterRequest>,
 ) -> Result<Json<RegisterResponse>, Error> {
+    request.validate()?;
     let count = users
         .count_documents(
             bson::doc! {
