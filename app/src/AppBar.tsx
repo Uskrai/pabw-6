@@ -47,7 +47,7 @@ function ResponsiveAppBar() {
   };
 
   const pages = Object.entries({
-    Products: ["Admin", "Customer"].includes(user?.user?.role || "") ? "/product" : null,
+    Products: ["Admin", "Customer"].includes(user?.user?.role || "") ? "/user/product" : null,
     Customer: user?.user?.role == "Admin" ? "/admin/account/customer" : null,
     Courier: user?.user?.role == "Admin" ? "/admin/account/courier" : null,
     // Accounts: user.user?.role == "Admin" ? "/admin/account" : null,

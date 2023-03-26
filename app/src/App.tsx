@@ -103,7 +103,7 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: "/product",
+    path: "/user/product",
     element: (
       <ProtectedRoute login={true}>
         <ProductIndex />
@@ -111,16 +111,16 @@ const router = createBrowserRouter([
     ),
     children: [
       {
-        path: "/product/:id",
+        path: "/user/product/:id",
         element: <ProductShow />,
       },
       {
-        path: "/product/create",
+        path: "/user/product/create",
         element: <ProductCreate />,
       },
       {
-        path: "/product/:id/edit",
-        element: <ProductShow />,
+        path: "/user/product/:id/edit",
+        element: <ProductEdit />,
       },
     ],
   },

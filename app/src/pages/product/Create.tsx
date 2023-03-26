@@ -21,7 +21,7 @@ export default function CreateProduct() {
         });
 
         mutate("/api/v1/product");
-        navigate(`/product/${res.data.id}`);
+        navigate(`/user/product/${res.data.id}`);
       }}
     />
   );

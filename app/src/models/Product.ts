@@ -17,3 +17,7 @@ export interface ProductForm {
   price: string;
   stock: string;
 }
+
+export interface GetProduct {
+  products: Product[];
+}

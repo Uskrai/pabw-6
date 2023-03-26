@@ -40,8 +40,8 @@ export default function Index() {
       <AppBar />
 
       <Grid container>
-        <Grid item xs={4}>
-          <Link to={"/product/create"}>
+        <Grid item xs>
+          <Link to={"/user/product/create"}>
             New
           </Link>
           {data?.products
@@ -65,7 +65,7 @@ function ProductCard({ product }: { product: Product }) {
   const navigate = useNavigate();
   return (
     <Card>
-      <CardActionArea onClick={() => navigate(`/product/${product.id}`)}>
+      <CardActionArea onClick={() => navigate(`/user/product/${product.id}`)}>
       <CardContent>
         <Typography gutterBottom variant="h5" component="div">
           {product.name}

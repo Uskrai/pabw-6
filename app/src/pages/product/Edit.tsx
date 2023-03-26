@@ -46,7 +46,7 @@ export default function EditProduct() {
 
           mutate("/api/v1/product");
           mutateNow();
-          navigate(`/product/${product.id}`);
+          navigate(`/user/product/${product.id}`);
         } catch (e) {}
       }}
     />

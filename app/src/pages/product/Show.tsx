@@ -28,7 +28,7 @@ export default function ShowProduct() {
   let onDelete = async () => {
     await axios.delete(`/api/v1/product/${id}`, { headers: {Authorization: `Bearer ${token}`}});
     mutate("/api/v1/product");
-    navigate("/product");
+    navigate("/user/product");
   }
 
   return (
@@ -46,8 +46,8 @@ export default function ShowProduct() {
         <Typography variant="body2">Stok: {product.stock}</Typography>
       </CardContent>
       <CardActions>
-        <Link to={`/product/${product.id}/edit`}>Edit</Link>
-        <Link to={`/product/${product.id}`} onClick={onDelete}>Delete</Link>
+        <Link to={`/user/product/${product.id}/edit`}>Edit</Link>
+        <Link to={`/user/product/${product.id}`} onClick={onDelete}>Delete</Link>
       </CardActions>
     </Card>
   );
