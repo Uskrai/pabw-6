@@ -25,7 +25,7 @@ export function useProvidedAuth(): Auth {
   );
   const [isLoading, setIsLoading] = React.useState(true);
 
-  const { data, error, isValidating, mutate } = useSWR(
+  const { data, error, isLoading: isSwrLoading, mutate } = useSWR(
     "/api/v1/auth/refresh",
     async (url) => {
       console.log("calling", url);
@@ -60,8 +60,8 @@ export function useProvidedAuth(): Auth {
       logout();
     }
 
-    setIsLoading(isValidating);
-  }, [data, error, isValidating]);
+    setIsLoading(isSwrLoading);
+  }, [data, error, isSwrLoading]);
 
   return { token, isLogin, isLoading, login, logout, mutate };
 }

@@ -35,7 +35,7 @@ export function useAuthSWR<T>(url: string, options?: Partial<PublicConfiguration
     }
 
     setIsLoading(isAuthLoading || isSwrLoading);
-  }, [token, data, error]);
+  }, [token, data, error, isAuthLoading, isSwrLoading]);
 
   return {
     isLoading,

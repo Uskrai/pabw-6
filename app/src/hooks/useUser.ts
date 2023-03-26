@@ -39,7 +39,7 @@ export function useUser(): UseUser {
       setUser(null);
     }
 
-    setIsLoading(isValidating || isSwrLoading );
+    setIsLoading(isSwrLoading);
   }, [token, data, error, isValidating, isSwrLoading]);
 
   return { user, mutate, isLoading };
