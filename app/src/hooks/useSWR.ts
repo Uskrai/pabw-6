@@ -30,7 +30,8 @@ export function useAuthSWR<T>(url: string, options?: Partial<PublicConfiguration
       setUser(data?.data);
     } else if (!token || error?.response.status == 401) {
       setUser(null);
-      // authMutate();
+    } else if (token && error?.response.status == 401) {
+      authMutate();
     }
 
     setIsLoading(isAuthLoading || isSwrLoading);
