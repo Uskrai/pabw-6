@@ -46,7 +46,11 @@ export default function Show(props: Props) {
         {/*   Deskripsi: {product.description} */}
         {/* </Typography> */}
         <Typography variant="body2" fontSize={12}>
-          Role: Rp. {user.role}
+          Role: {user.role}
+        </Typography>
+
+        <Typography variant="body2" fontSize={12}>
+          Balance: {user.balance}
         </Typography>
         {/* <Typography variant="body2">Stok: {product.stock}</Typography> */}
       </CardContent>

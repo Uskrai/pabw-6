@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 
 import Card from "@mui/material/Card";
 import CardActionArea from "@mui/material/CardActionArea";
@@ -10,6 +10,7 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useAuthSWR } from "../../hooks/useSWR";
 import { useUser } from "../../hooks/useUser";
 import { User } from "../../models/User";
+import { CircularProgress } from "@mui/material";
 
 const AppBar = React.lazy(() => import("../../AppBar"));
 
@@ -22,24 +23,33 @@ interface Props {
 }
 
 export default function Index(props: Props) {
-  let { data }: { data: GetUsers } = useAuthSWR("/api/v1/account");
-  console.log(data, props.role);
+  let { data, isLoading } = useAuthSWR<GetUsers>("/api/v1/account");
+
+  const accounts = useMemo(
+    () => data?.accounts?.filter((it) => it.role == props.role),
+    [data?.accounts, props.role]
+  );
 
   return (
     <div>
       <AppBar />
 
       <Grid container>
-        <Grid item xs={4}>
-          <Link to={"/product/create"}>New</Link>
-          {data?.accounts
-            ?.filter((it) => it.role == props.role)
-            .map((it) => (
+        {!isLoading ? (
+          <Grid item xs={4}>
+            <Link to={`/admin/account/${props.role.toLowerCase()}/create`}>
+              New
+            </Link>
+            {accounts?.map((it) => (
               <div key={it.id}>
-                <ItemCard user={it} role={props.role}/>
+                <ItemCard user={it} role={props.role} />
               </div>
             ))}
-        </Grid>
+          </Grid>
+        ) : (
+          <CircularProgress />
+        )}
+
         <Divider orientation="vertical" flexItem />
         <Grid item xs>
           <Outlet />
@@ -49,11 +59,15 @@ export default function Index(props: Props) {
   );
 }
 
-function ItemCard({ user, role }: { user: User, role: string }) {
+function ItemCard({ user, role }: { user: User; role: string }) {
   const navigate = useNavigate();
   return (
     <Card>
-      <CardActionArea onClick={() => navigate(`/admin/account/${role.toLowerCase()}/${user.id}`)}>
+      <CardActionArea
+        onClick={() =>
+          navigate(`/admin/account/${role.toLowerCase()}/${user.id}`)
+        }
+      >
         <CardContent>
           <Typography gutterBottom variant="h5" component="div">
             {user.email}
@@ -61,10 +75,6 @@ function ItemCard({ user, role }: { user: User, role: string }) {
           <Typography variant="body2" color="text.secondary">
             {user.role}
           </Typography>
-          {/* <Typography variant="body2" fontSize={12}> */}
-          {/*   Rp. {product.price} */}
-          {/* </Typography> */}
-          {/* <Typography variant="overline">{product.stock}</Typography> */}
         </CardContent>
       </CardActionArea>
     </Card>

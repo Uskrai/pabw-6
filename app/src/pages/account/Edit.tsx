@@ -26,16 +26,14 @@ export default function EditProduct(props: Props) {
 
   const navigate = useNavigate();
   const form = useForm<UserForm>({
-    defaultValues: async () => {
-      return {
-        email: account?.email,
-        role: account?.role ?? "",
-      };
+    defaultValues: {
+      email: account?.email,
+      role: account?.role ?? "",
     },
   });
 
   React.useEffect(() => {
-    form.reset(account!, { keepDefaultValues: true });
+    form.reset(account!);
   }, [isLoading]);
 
   const { token } = useAuth();

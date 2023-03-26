@@ -17,7 +17,6 @@ export default function Form({
   onClick,
   withPassword,
 }: Props) {
-  console.log(formState.defaultValues);
   return (
     <FormControl>
       <TextField
@@ -27,7 +26,11 @@ export default function Form({
         sx={{ m: 2 }}
         fullWidth
       />
-      <Select {...register("role")} sx={{ m: 2 }} defaultValue={formState.defaultValues?.role}>
+      <Select
+        {...register("role")}
+        sx={{ m: 2 }}
+        defaultValue={formState.defaultValues?.role}
+      >
         <MenuItem value="Customer">Customer</MenuItem>
         <MenuItem value="Courier">Courier</MenuItem>
       </Select>
@@ -53,6 +56,15 @@ export default function Form({
           />
         </>
       )}
+
+      <TextField
+        {...register("balance")}
+        type="number"
+        label={"Balance"}
+        defaultValue={formState.defaultValues?.balance}
+        sx={{ m: 2 }}
+        fullWidth
+      />
 
       <Button onClick={handleSubmit(onClick)}>Submit</Button>
     </FormControl>
