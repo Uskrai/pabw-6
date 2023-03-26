@@ -50,8 +50,23 @@ async fn main() {
                     .route("/", routing::post(ecommerce::api::v1::account::create))
                     .route("/:id", routing::get(ecommerce::api::v1::account::show))
                     .route("/:id", routing::put(ecommerce::api::v1::account::update))
-                    .route("/:id", routing::delete(ecommerce::api::v1::account::delete))
-
+                    .route("/:id", routing::delete(ecommerce::api::v1::account::delete)),
+            )
+            .nest(
+                "/order",
+                Router::new()
+                    .route(
+                        "/",
+                        routing::get(ecommerce::api::v1::transaction::index_order),
+                    )
+                    .route(
+                        "/:id",
+                        routing::get(ecommerce::api::v1::transaction::show_order),
+                    )
+                    .route(
+                        "/",
+                        routing::post(ecommerce::api::v1::transaction::insert_order),
+                    ),
             ),
     );
 

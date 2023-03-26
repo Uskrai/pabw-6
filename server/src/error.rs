@@ -42,6 +42,12 @@ pub enum Error {
 
     #[error("{1}")]
     CustomStatus(StatusCode, anyhow::Error),
+
+    #[error("products must be from the same merchant")]
+    MismatchMerchant,
+
+    #[error("Your balance is not sufficient to complete this transaction.")]
+    InsufficientFund,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -83,9 +89,11 @@ impl From<Error> for ErrorJson {
             Error::ValidationError(err) => serde_json::to_value(err).ok(),
             Error::NotFound(..)
             | Error::NoResource
+            | Error::InsufficientFund
             | Error::ViteManifestNotFound
             | Error::PasswordHashError(..)
             | Error::DatabaseError(..)
+            | Error::MismatchMerchant
             | Error::JWTError(..)
             | Error::BSONSerError(..)
             | Error::MustUniqueError(..)
@@ -107,9 +115,10 @@ impl IntoResponse for Error {
         tracing::error!("error: {:?}", self);
         let status = match self {
             Self::Unauthorized(..) => StatusCode::UNAUTHORIZED,
-            Self::ValidationError(..) | Self::MustUniqueError(..) => {
+            Self::ValidationError(..) | Self::MustUniqueError(..) | Self::MismatchMerchant => {
                 StatusCode::UNPROCESSABLE_ENTITY
             }
+            Self::InsufficientFund => StatusCode::PAYMENT_REQUIRED,
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::NotFound(..) | Self::NoResource => StatusCode::NOT_FOUND,
             Self::PasswordHashError(..)
@@ -157,6 +166,8 @@ impl Error {
             NoResource!,
             ViteManifestNotFound!,
             Forbidden!,
+            MismatchMerchant!,
+            InsufficientFund!,
             ValidationError(..),
             PasswordHashError(..),
             DatabaseError(..),
@@ -167,5 +178,11 @@ impl Error {
             CustomStatus(..)
         }
         .to_string()
+    }
+}
+
+impl From<axum::extract::rejection::PathRejection> for Error {
+    fn from(_value: axum::extract::rejection::PathRejection) -> Self {
+        Self::NoResource
     }
 }

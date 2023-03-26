@@ -56,16 +56,15 @@ where
 
     /// Finds a single document in the collection with matchi id and null deleted_at.
     pub async fn find_exists_one_by_id(&self, id: ObjectId) -> Result<Option<T>, Error> {
-        self
-            .find_one(
-                bson::doc! {
-                    "_id": id,
-                    "deleted_at": null
-                },
-                None,
-            )
-            .await
-            .map_err(Into::into)
+        self.find_one(
+            bson::doc! {
+                "_id": id,
+                "deleted_at": null
+            },
+            None,
+        )
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn update_exists_one_by_id(
@@ -73,32 +72,50 @@ where
         id: ObjectId,
         update: impl Into<mongodb::options::UpdateModifications>,
     ) -> Result<mongodb::results::UpdateResult, Error> {
-        self
-            .update_one(
-                bson::doc! {
-                    "_id": id,
-                    "deleted_at": null,
-                },
-                update,
-                None,
-            )
-            .await
-            .map_err(Into::into)
+        self.update_one(
+            bson::doc! {
+                "_id": id,
+                "deleted_at": null,
+            },
+            update,
+            None,
+        )
+        .await
+        .map_err(Into::into)
+    }
+
+    pub async fn update_exists_one_by_id_with_session(
+        &self,
+        id: ObjectId,
+        update: impl Into<mongodb::options::UpdateModifications>,
+        option: impl Into<Option<mongodb::options::UpdateOptions>>,
+        session: &mut mongodb::ClientSession,
+    ) -> Result<mongodb::results::UpdateResult, Error> {
+        self.update_one_with_session(
+            bson::doc! {
+                "_id": id,
+                "deleted_at": null,
+            },
+            update,
+            option,
+            session,
+        )
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn soft_delete_one_by_id(&self, id: ObjectId) -> Result<(), Error> {
-        self
-            .update_one(
-                bson::doc! {
-                    "_id": id,
-                },
-                bson::doc! {
-                    "deleted_at": bson::DateTime::from(time::OffsetDateTime::now_utc()),
-                },
-                None,
-            )
-            .await
-            .map(|_| ())
-            .map_err(Into::into)
+        self.update_one(
+            bson::doc! {
+                "_id": id,
+            },
+            bson::doc! {
+                "deleted_at": bson::DateTime::from(time::OffsetDateTime::now_utc()),
+            },
+            None,
+        )
+        .await
+        .map(|_| ())
+        .map_err(Into::into)
     }
 }

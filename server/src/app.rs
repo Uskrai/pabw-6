@@ -4,6 +4,7 @@ use crate::api::v1::{
     auth::UserCollection,
     product::ProductCollection,
     token::{JwtState, RefreshTokenCollection},
+    transaction::TransactionCollection,
 };
 
 #[derive(FromRef, Clone)]
@@ -15,6 +16,7 @@ pub struct AppState {
     token_collection: RefreshTokenCollection,
     user_collection: UserCollection,
     product_collection: ProductCollection,
+    transaction_collection: TransactionCollection,
 }
 
 impl AppState {
@@ -36,6 +38,7 @@ impl AppState {
             token_collection: RefreshTokenCollection(db.collection("refresh_tokens")),
             user_collection: UserCollection(db.collection("users").into()),
             product_collection: ProductCollection(db.collection("products")),
+            transaction_collection: TransactionCollection(db.collection("transactions").into()),
         })
     }
 }

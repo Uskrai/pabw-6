@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use axum::RequestPartsExt;
 use bson::oid::ObjectId;
 use num_bigint::BigInt;
 use rust_decimal::Decimal;
@@ -15,6 +16,12 @@ pub struct ObjectIdString(#[serde(with = "object_id_string")] pub ObjectId);
 impl From<ObjectId> for ObjectIdString {
     fn from(value: ObjectId) -> Self {
         Self(value)
+    }
+}
+
+impl From<ObjectIdString> for ObjectId {
+    fn from(value: ObjectIdString) -> Self {
+        value.0
     }
 }
 
@@ -48,6 +55,24 @@ impl std::cmp::PartialEq<ObjectId> for ObjectIdString {
 impl From<ObjectIdString> for bson::Bson {
     fn from(value: ObjectIdString) -> Self {
         value.0.into()
+    }
+}
+
+pub struct PathObjectId(pub ObjectId);
+
+#[axum::async_trait]
+impl<S> axum::extract::FromRequestParts<S> for PathObjectId {
+    type Rejection = crate::error::Error;
+
+    async fn from_request_parts(
+        req: &mut axum::http::request::Parts,
+        _s: &S,
+    ) -> Result<Self, Self::Rejection> {
+        let string = req.extract::<axum::extract::Path<String>>().await?;
+
+        Ok(PathObjectId(
+            string.parse().map_err(|_| crate::error::Error::NoResource)?,
+        ))
     }
 }
 
@@ -226,6 +251,7 @@ impl<'de> Deserialize<'de> for BigIntString {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct DecimalString(pub Decimal);
 
 impl From<Decimal> for DecimalString {
