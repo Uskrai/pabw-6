@@ -38,7 +38,8 @@ where
     T: DeserializeOwned + Send + Sync + Unpin,
 {
     pub async fn get_one_by_id(&self, id: ObjectId) -> Result<Option<T>, Error> {
-        self.0
+    pub async fn find_exists_one_by_id(&self, id: ObjectId) -> Result<Option<T>, Error> {
+        self
             .find_one(
                 bson::doc! {
                     "_id": id,
@@ -50,12 +51,12 @@ where
             .map_err(Into::into)
     }
 
-    pub async fn update_one_by_id(
+    pub async fn update_exists_one_by_id(
         &self,
         id: ObjectId,
         update: impl Into<mongodb::options::UpdateModifications>,
     ) -> Result<mongodb::results::UpdateResult, Error> {
-        self.0
+        self
             .update_one(
                 bson::doc! {
                     "_id": id,
@@ -69,7 +70,7 @@ where
     }
 
     pub async fn soft_delete_one_by_id(&self, id: ObjectId) -> Result<(), Error> {
-        self.0
+        self
             .update_one(
                 bson::doc! {
                     "_id": id,

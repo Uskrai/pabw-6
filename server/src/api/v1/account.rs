@@ -163,7 +163,7 @@ pub async fn update(
 
     // accounts.find_one_by_id
     accounts
-        .update_one_by_id(
+        .update_exists_one_by_id(
             account_id,
             bson::doc! {
                 "$set": bson::to_document(&account)?
@@ -189,7 +189,7 @@ pub async fn delete(
     let account_id = ObjectId::from_str(&account_id).map_err(|_| Error::NoResource)?;
 
     accounts
-        .get_one_by_id(account_id)
+        .find_exists_one_by_id(account_id)
         .await?
         .ok_or_else(|| Error::NoResource)?;
 
