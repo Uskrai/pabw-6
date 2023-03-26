@@ -1,5 +1,6 @@
 import CircularProgress from "@mui/material/CircularProgress";
 import axios from "axios";
+import React from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
@@ -26,6 +27,7 @@ export default function EditProduct() {
       stock: product?.stock,
     },
   });
+  React.useEffect(() => form.reset(product), [isLoading])
 
   const { token } = useAuth();
 
