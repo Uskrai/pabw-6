@@ -5,7 +5,7 @@ use axum::{
     Json,
 };
 use bson::oid::ObjectId;
-use mongodb::Collection;
+use crate::mongo_ext::Collection;
 use num_bigint::BigInt;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
