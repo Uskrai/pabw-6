@@ -6,6 +6,7 @@ use axum::{
     Json, RequestPartsExt, TypedHeader,
 };
 use bson::oid::ObjectId;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use validator::Validate;
@@ -13,7 +14,7 @@ use validator::Validate;
 use crate::{
     error::{Error, UnauthorizedType},
     mongo_ext::Collection,
-    util::{hash_password, verify_password, FormattedDateTime, ObjectIdString},
+    util::{hash_password, verify_password, DecimalString, FormattedDateTime, ObjectIdString},
 };
 
 use super::token::{
@@ -46,6 +47,9 @@ pub struct UserModel {
     pub email: String,
     pub password: String,
     pub role: UserRole,
+
+    #[serde(default)]
+    pub balance: Decimal,
 
     pub created_at: bson::DateTime,
     pub updated_at: bson::DateTime,
@@ -190,6 +194,8 @@ pub struct RegisterResponse {
     pub email: String,
     pub role: UserRole,
 
+    pub balance: DecimalString,
+
     pub created_at: FormattedDateTime,
     pub updated_at: FormattedDateTime,
 }
@@ -200,6 +206,9 @@ impl From<UserModel> for RegisterResponse {
             id: value.id.into(),
             email: value.email,
             role: value.role,
+
+            balance: value.balance.into(),
+
             created_at: value.created_at.into(),
             updated_at: value.updated_at.into(),
         }
@@ -230,6 +239,7 @@ pub async fn register(
         email: request.email,
         password: hash_password(&argon, &request.password)?,
         role: UserRole::Customer,
+        balance: Decimal::from(0),
         created_at: OffsetDateTime::now_utc().into(),
         updated_at: OffsetDateTime::now_utc().into(),
     };

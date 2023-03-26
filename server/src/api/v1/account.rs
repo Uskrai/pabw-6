@@ -6,11 +6,12 @@ use axum::{
     Json,
 };
 use bson::oid::ObjectId;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use validator::Validate;
 
-use crate::error::Error;
+use crate::{error::Error, util::DecimalString};
 
 use super::auth::{RegisterResponse, UserAccess, UserCollection, UserModel, UserRole};
 
@@ -19,9 +20,7 @@ pub struct IndexResponse {
     pub accounts: Vec<RegisterResponse>,
 }
 
-pub async fn index(
-    State(collection): State<UserCollection>,
-) -> Result<Json<IndexResponse>, Error> {
+pub async fn index(State(collection): State<UserCollection>) -> Result<Json<IndexResponse>, Error> {
     let mut cursor = collection.find(None, None).await?;
 
     let mut accounts = vec![];
@@ -66,6 +65,8 @@ pub struct AccountRequest {
     #[allow(unused_variables)]
     pub confirm_password: String,
 
+    pub balance: Option<DecimalString>,
+
     pub role: UserRole,
 }
 
@@ -103,6 +104,10 @@ pub async fn insert(
         email: request.email,
         password: crate::util::hash_password(argon, &request.password)?,
         role: request.role,
+        balance: request
+            .balance
+            .map(Into::into)
+            .unwrap_or_else(|| Decimal::from(0)),
         created_at: OffsetDateTime::now_utc().into(),
         updated_at: OffsetDateTime::now_utc().into(),
     };
@@ -122,6 +127,8 @@ pub struct UpdateRequest {
     #[validate(must_match = "password")]
     #[serde(rename = "confirm_password")]
     pub _confirm_password: Option<String>,
+
+    pub balance: Option<DecimalString>,
 
     pub role: Option<UserRole>,
 }
@@ -157,6 +164,7 @@ pub async fn update(
             .map(|it| crate::util::hash_password(&argon, &it))
             .unwrap_or(Ok(account.password))?,
         role: request.role.unwrap_or(account.role),
+        balance: request.balance.map(Into::into).unwrap_or(account.balance),
         updated_at: OffsetDateTime::now_utc().into(),
         created_at: account.created_at,
         // deleted_at: account.deleted_at,
