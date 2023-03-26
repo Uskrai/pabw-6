@@ -51,6 +51,14 @@ impl JwtState {
 #[derive(Clone)]
 pub struct RefreshTokenCollection(pub Collection<RefreshTokenModel>);
 
+impl std::ops::Deref for RefreshTokenCollection {
+    type Target = Collection<RefreshTokenModel>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 pub fn current_timestamp() -> OffsetDateTime {
     OffsetDateTime::now_utc()
 }

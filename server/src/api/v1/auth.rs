@@ -207,7 +207,7 @@ impl From<UserModel> for RegisterResponse {
 }
 
 pub async fn register(
-    State(UserCollection(users)): State<UserCollection>,
+    State(users): State<UserCollection>,
     State(argon): State<Argon2<'_>>,
     Json(request): Json<RegisterRequest>,
 ) -> Result<Json<RegisterResponse>, Error> {
@@ -251,7 +251,7 @@ pub struct LoginResponse {
 }
 
 pub async fn login(
-    State(UserCollection(users)): State<UserCollection>,
+    State(users): State<UserCollection>,
     State(refresh_tokens): State<RefreshTokenCollection>,
     State(jwt_state): State<JwtState>,
     State(argon): State<Argon2<'static>>,
@@ -301,7 +301,7 @@ pub async fn login(
 }
 
 pub async fn logout(
-    State(RefreshTokenCollection(refresh_tokens)): State<RefreshTokenCollection>,
+    State(refresh_tokens): State<RefreshTokenCollection>,
     RefreshClaim(claim, _): RefreshClaim,
 ) -> Result<(), Error> {
     let _m = refresh_tokens
@@ -323,8 +323,8 @@ pub struct RefreshAccessTokenResponse {
 }
 
 pub async fn refresh_access_token(
-    State(UserCollection(users)): State<UserCollection>,
-    State(RefreshTokenCollection(refresh_tokens)): State<RefreshTokenCollection>,
+    State(users): State<UserCollection>,
+    State(refresh_tokens): State<RefreshTokenCollection>,
     State(jwt_state): State<JwtState>,
     State(argon): State<Argon2<'static>>,
     RefreshClaim(claim, refresh_token): RefreshClaim,

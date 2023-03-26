@@ -38,6 +38,14 @@ pub struct ProductModel {
 #[derive(Clone)]
 pub struct ProductCollection(pub Collection<ProductModel>);
 
+impl std::ops::Deref for ProductCollection {
+    type Target = Collection<ProductModel>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Product {
     pub id: ObjectIdString,
@@ -77,7 +85,7 @@ pub struct IndexResponse {
 }
 
 pub async fn index(
-    State(ProductCollection(collection)): State<ProductCollection>,
+    State(collection): State<ProductCollection>,
 ) -> Result<Json<IndexResponse>, Error> {
     let mut cursor = collection.find(None, None).await?;
 
@@ -93,7 +101,7 @@ pub async fn index(
 }
 
 pub async fn show(
-    State(ProductCollection(products)): State<ProductCollection>,
+    State(products): State<ProductCollection>,
     Path(product_id): Path<String>,
 ) -> Result<Json<Product>, Error> {
     let product_id = ObjectId::from_str(&product_id).map_err(|_| Error::NoResource)?;
@@ -121,7 +129,7 @@ pub struct CreateRequest {
 }
 
 pub async fn create(
-    State(ProductCollection(products)): State<ProductCollection>,
+    State(products): State<ProductCollection>,
     user: UserAccess,
     Json(request): Json<CreateRequest>,
 ) -> Result<Json<Product>, Error> {
@@ -160,7 +168,7 @@ pub struct UpdateRequest {
 
 pub async fn update(
     user: UserAccess,
-    State(ProductCollection(products)): State<ProductCollection>,
+    State(products): State<ProductCollection>,
     Path(product_id): Path<String>,
     Json(request): Json<UpdateRequest>,
 ) -> Result<Json<Product>, Error> {
@@ -214,7 +222,7 @@ pub async fn update(
 }
 
 pub async fn delete(
-    State(ProductCollection(products)): State<ProductCollection>,
+    State(products): State<ProductCollection>,
     user: UserAccess,
     Path(product_id): Path<String>,
 ) -> Result<(), Error> {

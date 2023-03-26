@@ -37,7 +37,24 @@ impl<T> Collection<T>
 where
     T: DeserializeOwned + Send + Sync + Unpin,
 {
-    pub async fn get_one_by_id(&self, id: ObjectId) -> Result<Option<T>, Error> {
+    /// Finds the documents in the collection matching `filter` with null deleted_at .
+    pub async fn find_exists(
+        &self,
+        filter: impl Into<Option<bson::Document>>,
+    ) -> Result<mongodb::Cursor<T>, mongodb::error::Error> {
+        let doc = filter.into();
+
+        let mut filter = bson::doc! {
+            "deleted_at": null
+        };
+        if let Some(it) = doc {
+            filter.extend(it);
+        }
+
+        self.find(filter, None).await
+    }
+
+    /// Finds a single document in the collection with matchi id and null deleted_at.
     pub async fn find_exists_one_by_id(&self, id: ObjectId) -> Result<Option<T>, Error> {
         self
             .find_one(

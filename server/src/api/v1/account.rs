@@ -20,7 +20,7 @@ pub struct IndexResponse {
 }
 
 pub async fn index(
-    State(UserCollection(collection)): State<UserCollection>,
+    State(collection): State<UserCollection>,
 ) -> Result<Json<IndexResponse>, Error> {
     let mut cursor = collection.find(None, None).await?;
 
@@ -36,7 +36,7 @@ pub async fn index(
 }
 
 pub async fn show(
-    State(UserCollection(accounts)): State<UserCollection>,
+    State(accounts): State<UserCollection>,
     Path(account_id): Path<String>,
 ) -> Result<Json<RegisterResponse>, Error> {
     let account_id = ObjectId::from_str(&account_id).map_err(|_| Error::NoResource)?;
@@ -118,16 +118,17 @@ pub struct UpdateRequest {
 
     #[validate(length(min = 8, max = 64))]
     pub password: Option<String>,
+
     #[validate(must_match = "password")]
-    #[allow(unused_variables)]
-    pub confirm_password: Option<String>,
+    #[serde(rename = "confirm_password")]
+    pub _confirm_password: Option<String>,
 
     pub role: Option<UserRole>,
 }
 
 pub async fn update(
     user: UserAccess,
-    State(UserCollection(accounts)): State<UserCollection>,
+    State(accounts): State<UserCollection>,
     State(argon): State<Argon2<'_>>,
     Path(account_id): Path<String>,
     Json(request): Json<UpdateRequest>,
@@ -175,7 +176,7 @@ pub async fn update(
 }
 
 pub async fn delete(
-    State(UserCollection(accounts)): State<UserCollection>,
+    State(accounts): State<UserCollection>,
     user: UserAccess,
     Path(account_id): Path<String>,
 ) -> Result<(), Error> {
