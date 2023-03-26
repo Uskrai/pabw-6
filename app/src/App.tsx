@@ -66,7 +66,7 @@ const account = (role: "Customer" | "Courier") => {
     children: [
       {
         path: `/admin/account/${role.toLowerCase()}/create`,
-        element: <AccountCreate />,
+        element: <AccountCreate role={role}/>,
       },
       {
         path: `/admin/account/${role.toLowerCase()}/:id`,

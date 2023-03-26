@@ -3,11 +3,19 @@ import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { mutate } from "swr";
 import { useAuth } from "../../hooks/useAuth";
-import { UserForm } from "../../models/User";
+import { UserForm, UserRole } from "../../models/User";
 import Form from "./Form";
 
-export default function CreateProduct() {
-  const form = useForm<UserForm>({});
+interface Props {
+  role: UserRole;
+}
+
+export default function CreateProduct(props: Props) {
+  const form = useForm<UserForm>({
+    defaultValues: {
+      role: props.role
+    }
+  });
 
   const { token } = useAuth();
   const navigate = useNavigate();
@@ -15,6 +23,7 @@ export default function CreateProduct() {
   return (
     <Form
       form={form}
+      withPassword={true}
       onClick={async (e) => {
         let res = await axios.post("/api/v1/account/", e, {
           headers: { Authorization: `Bearer ${token}` },

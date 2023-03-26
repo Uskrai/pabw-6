@@ -8,6 +8,8 @@ export interface User {
 export interface UserForm {
   email: string;
   role: UserRole | '';
+  password: string;
+  confirm_password: string;
 }
 
 export type UserRole = "Customer" | "Courier" | "Admin";
