@@ -34,7 +34,7 @@ export function useAuthSWR<T>(
   React.useEffect(() => {
     if (token && swrData) {
       setData(swrData?.data);
-    } else if (!token && error?.response?.status == 401) {
+    } else if (!token || error?.response?.status == 401) {
       setData(null);
     }
     if (token && error?.response?.status == 401) {
