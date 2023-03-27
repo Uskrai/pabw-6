@@ -52,7 +52,9 @@ function ResponsiveAppBar() {
   };
 
   const pages = Object.entries({
-    Products: ["Admin", "Customer"].includes(user?.user?.role || "") ? "/user/product" : null,
+    Products: ["Admin", "Customer"].includes(user?.user?.role || "")
+      ? "/user/product"
+      : null,
     Customer: user?.user?.role == "Admin" ? "/admin/account/customer" : null,
     Courier: user?.user?.role == "Admin" ? "/admin/account/courier" : null,
     Order: user?.user?.role == "Customer" ? "/user/order" : null,
@@ -63,7 +65,7 @@ function ResponsiveAppBar() {
         Logout: async () => {
           await axios.post("/api/v1/auth/logout");
           auth.logout();
-        navigate("/");
+          navigate("/");
           handleCloseUserMenu();
         },
       }
@@ -169,7 +171,7 @@ function ResponsiveAppBar() {
             ) : settings ? (
               <>
                 <Typography component="a" sx={{ m: 4 }}>
-                  {formatter.format(user?.user?.balance || "" as any) }
+                  {formatter.format(user?.user?.balance || ("" as any))}
                 </Typography>
 
                 <Tooltip title="Open settings">
@@ -201,13 +203,7 @@ function ResponsiveAppBar() {
                 </Menu>
               </>
             ) : (
-              <NavLink
-                to="/login"
-                // key={"Login"}
-                // onClick={() => {
-                //   console.log("Clicked");
-                //   navigate("/login");
-              >
+              <NavLink to="/login">
                 <Typography textAlign="center">Login</Typography>
               </NavLink>
             )}

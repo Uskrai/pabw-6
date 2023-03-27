@@ -11,9 +11,12 @@ import Form from "./Form";
 export default function EditProduct() {
   let { id } = useParams();
 
-  let { data, isLoading, mutate: mutateNow } = useSWR<{ data: Product }>(
-    `/api/v1/product/${id}`,
-    (url) => axios.get(url)
+  let {
+    data,
+    isLoading,
+    mutate: mutateNow,
+  } = useSWR<{ data: Product }>(`/api/v1/product/${id}`, (url) =>
+    axios.get(url)
   );
 
   let product = data?.data!;
@@ -27,7 +30,7 @@ export default function EditProduct() {
       stock: product?.stock,
     },
   });
-  React.useEffect(() => form.reset(product), [isLoading])
+  React.useEffect(() => form.reset(product), [isLoading]);
 
   const { token } = useAuth();
 

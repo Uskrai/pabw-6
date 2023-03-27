@@ -10,7 +10,6 @@ export interface Product {
   deleted_at: string;
 }
 
-
 export interface ProductForm {
   name: string;
   description: string;

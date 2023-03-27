@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useForm, } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 
@@ -10,7 +10,7 @@ interface FormData {
 
 export default function Login() {
   let { register, handleSubmit, formState } = useForm<FormData>();
-  const auth = useAuth()
+  const auth = useAuth();
   const navigate = useNavigate();
 
   let onClick = async (e: FormData) => {
@@ -19,7 +19,6 @@ export default function Login() {
         email: e.email,
         password: e.password,
       });
-
 
       auth.login(res.data.access_token);
 

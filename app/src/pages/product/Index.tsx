@@ -41,9 +41,7 @@ export default function Index() {
 
       <Grid container>
         <Grid item xs>
-          <Link to={"/user/product/create"}>
-            New
-          </Link>
+          <Link to={"/user/product/create"}>New</Link>
           {data?.products
             ?.filter((it) => it.user_id == user?.user?.id)
             .map((it) => (
@@ -66,18 +64,18 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <Card>
       <CardActionArea onClick={() => navigate(`/user/product/${product.id}`)}>
-      <CardContent>
-        <Typography gutterBottom variant="h5" component="div">
-          {product.name}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {product.description}
-        </Typography>
-        {/* <Typography variant="body2" fontSize={12}> */}
-        {/*   Rp. {product.price} */}
-        {/* </Typography> */}
-        {/* <Typography variant="overline">{product.stock}</Typography> */}
-      </CardContent>
+        <CardContent>
+          <Typography gutterBottom variant="h5" component="div">
+            {product.name}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {product.description}
+          </Typography>
+          {/* <Typography variant="body2" fontSize={12}> */}
+          {/*   Rp. {product.price} */}
+          {/* </Typography> */}
+          {/* <Typography variant="overline">{product.stock}</Typography> */}
+        </CardContent>
       </CardActionArea>
     </Card>
   );

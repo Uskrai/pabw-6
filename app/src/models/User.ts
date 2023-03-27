@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -8,7 +7,7 @@ export interface User {
 
 export interface UserForm {
   email: string;
-  role: UserRole | '';
+  role: UserRole | "";
   password: string;
   confirm_password: string;
   balance: string;

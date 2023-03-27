@@ -25,7 +25,12 @@ export function useProvidedAuth(): Auth {
   );
   const [isLoading, setIsLoading] = React.useState(true);
 
-  const { data, error, isLoading: isSwrLoading, mutate } = useSWR(
+  const {
+    data,
+    error,
+    isLoading: isSwrLoading,
+    mutate,
+  } = useSWR(
     "/api/v1/auth/refresh",
     async (url) => {
       console.log("calling", url);

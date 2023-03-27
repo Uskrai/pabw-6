@@ -74,7 +74,7 @@ function ProductCard({
 }: {
   product: { id: string; quantity: string };
 }) {
-  const { data: product, isLoading } = useSWR<{ data: Product}>(
+  const { data: product, isLoading } = useSWR<{ data: Product }>(
     `/api/v1/product/${orderProduct.id}`,
     (url) => axios.get(url)
   );
@@ -83,6 +83,9 @@ function ProductCard({
     return <CircularProgress />;
   }
 
-  return <div>{orderProduct.quantity} x {product?.data?.name}</div>;
-
+  return (
+    <div>
+      {orderProduct.quantity} x {product?.data?.name}
+    </div>
+  );
 }

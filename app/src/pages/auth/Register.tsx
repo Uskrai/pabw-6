@@ -11,7 +11,7 @@ interface FormData {
 
 export default function Register() {
   let { register, handleSubmit, formState } = useForm<FormData>();
-  const auth = useAuth()
+  const auth = useAuth();
   const navigate = useNavigate();
 
   let onClick = async (e: FormData) => {
@@ -20,9 +20,8 @@ export default function Register() {
       let res = await axios.post("/api/v1/auth/register", {
         email: e.email,
         password: e.password,
-        confirm_password: e.confirmPassword
+        confirm_password: e.confirmPassword,
       });
-
 
       res = await axios.post("/api/v1/auth/login", {
         email: e.email,

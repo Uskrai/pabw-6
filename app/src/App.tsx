@@ -13,17 +13,17 @@ import { useUser } from "./hooks/useUser";
 const Landing = React.lazy(() => import("./Landing"));
 const Product = React.lazy(() => import("./Product"));
 const OrderIndex = React.lazy(() => import("./pages/order/Index"));
-const OrderShow  = React.lazy(() => import("./pages/order/Show"));
+const OrderShow = React.lazy(() => import("./pages/order/Show"));
 const Login = React.lazy(() => import("./Login"));
 const Register = React.lazy(() => import("./pages/auth/Register"));
-const Account = React.lazy(() => import("./pages/account/Index"));
+const AccountIndex = React.lazy(() => import("./pages/account/Index"));
 const AccountShow = React.lazy(() => import("./pages/account/Show"));
-const AccountEdit =React.lazy(() => import("./pages/account/Edit"));
+const AccountEdit = React.lazy(() => import("./pages/account/Edit"));
 const AccountCreate = React.lazy(() => import("./pages/account/Create"));
 const ProductIndex = React.lazy(() => import("./pages/product/Index"));
 const ProductShow = React.lazy(() => import("./pages/product/Show"));
 const ProductEdit = React.lazy(() => import("./pages/product/Edit"));
-const ProductCreate  = React.lazy(() => import("./pages/product/Create"));
+const ProductCreate = React.lazy(() => import("./pages/product/Create"));
 
 interface ProtectedRouteProps extends React.PropsWithChildren {
   login: boolean;
@@ -64,21 +64,21 @@ const account = (role: "Customer" | "Courier") => {
     path: `/admin/account/${role.toLowerCase()}`,
     element: (
       <ProtectedRoute login={true} role="Admin">
-        <Account role={role} />
+        <AccountIndex role={role} />
       </ProtectedRoute>
     ),
     children: [
       {
         path: `/admin/account/${role.toLowerCase()}/create`,
-        element: <AccountCreate role={role}/>,
+        element: <AccountCreate role={role} />,
       },
       {
         path: `/admin/account/${role.toLowerCase()}/:id`,
-        element: <AccountShow role={role}/>,
+        element: <AccountShow role={role} />,
       },
       {
         path: `/admin/account/${role.toLowerCase()}/:id/edit`,
-        element: <AccountEdit/>,
+        element: <AccountEdit />,
       },
     ],
   };
@@ -120,9 +120,9 @@ const router = createBrowserRouter([
     children: [
       {
         path: "/user/order/:id",
-        element: <OrderShow />
-      }
-    ]
+        element: <OrderShow />,
+      },
+    ],
   },
   {
     path: "/user/product",

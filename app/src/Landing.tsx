@@ -1,8 +1,7 @@
 import axios from "axios";
 import React from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 const AppBar = React.lazy(() => import("./AppBar"));
-import { useUser } from "./hooks/useUser";
 import useSWR from "swr";
 import { GetProduct, Product } from "./models/Product";
 import Card from "@mui/material/Card";
@@ -12,9 +11,6 @@ import Typography from "@mui/material/Typography";
 import Grid from "@mui/material/Grid";
 
 export default function Landing() {
-  const user = useUser();
-  console.log(user.user);
-
   const { data: productSwr } = useSWR<{ data: GetProduct }>(
     "/api/v1/product",
     (url) => axios.get(url)
@@ -44,7 +40,9 @@ function ProductCard({ product }: { product: Product }) {
   const navigate = useNavigate();
   return (
     <Card>
-      <CardActionArea onClick={() => navigate(`/product/${product.id}`)}>
+      <CardActionArea
+        onClick={() => navigate(`/${product.user_id}/${product.id}`)}
+      >
         <CardContent>
           <Typography gutterBottom variant="h5" component="div">
             {product.name}

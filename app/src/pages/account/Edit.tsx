@@ -47,7 +47,6 @@ export default function EditProduct(props: Props) {
       form={form}
       onClick={async (e) => {
         try {
-          console.log(e)
           let res = await axios.put(`/api/v1/account/${account?.id}`, e, {
             headers: {
               Authorization: `Bearer ${token}`,

@@ -4,7 +4,10 @@ import useSWR from "swr";
 import { PublicConfiguration } from "swr/_internal";
 import { useAuth } from "./useAuth";
 
-export function useAuthSWR<T>(url: string, options?: Partial<PublicConfiguration> | undefined) {
+export function useAuthSWR<T>(
+  url: string,
+  options?: Partial<PublicConfiguration> | undefined
+) {
   const { isLoading: isAuthLoading, token, mutate: authMutate } = useAuth();
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -14,12 +17,15 @@ export function useAuthSWR<T>(url: string, options?: Partial<PublicConfiguration
     error,
     mutate,
     isValidating,
-  } = useSWR(token ? [url, token] : null, ([url, token]) =>{
-    return axios.get(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })},
+  } = useSWR(
+    token ? [url, token] : null,
+    ([url, token]) => {
+      return axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    },
     options as any
   );
 
@@ -30,7 +36,7 @@ export function useAuthSWR<T>(url: string, options?: Partial<PublicConfiguration
       setData(swrData?.data);
     } else if (!token && error?.response?.status == 401) {
       setData(null);
-    } 
+    }
     if (token && error?.response?.status == 401) {
       authMutate();
     }

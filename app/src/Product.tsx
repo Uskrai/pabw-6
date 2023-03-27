@@ -41,18 +41,22 @@ export default function ShowProduct() {
   let product = data?.data!;
 
   function onBuy(e: BuyForm) {
-    axios.post("/api/v1/order", {
-      products: [
-        {
-          id: product_id,
-          quantity: e.quantity,
-        },
-      ],
-    }, {
+    axios.post(
+      "/api/v1/order",
+      {
+        products: [
+          {
+            id: product_id,
+            quantity: e.quantity,
+          },
+        ],
+      },
+      {
         headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
   }
 
   return (
@@ -74,28 +78,26 @@ export default function ShowProduct() {
 
           {token && (
             <>
-          <Typography variant="body2" fontSize={18}>
-            Kuantitas:
-          </Typography>
+              <Typography variant="body2" fontSize={18}>
+                Kuantitas:
+              </Typography>
 
-
-            <TextField
-              {...form.register("quantity")}
-              type="number"
-              variant="outlined"
-              size="small"
-            />
+              <TextField
+                {...form.register("quantity")}
+                type="number"
+                variant="outlined"
+                size="small"
+              />
             </>
           )}
         </CardContent>
 
         {token && (
-
-        <CardActions>
-          <Link to="" onClick={form.handleSubmit(onBuy)}>
-            Buy
-          </Link>
-        </CardActions>
+          <CardActions>
+            <Link to="" onClick={form.handleSubmit(onBuy)}>
+              Buy
+            </Link>
+          </CardActions>
         )}
       </Card>
     </div>

@@ -9,7 +9,10 @@ interface Props {
   form: UseFormReturn<ProductForm>;
 }
 
-export default function Form({ form: { register, formState, handleSubmit }, onClick }: Props) {
+export default function Form({
+  form: { register, formState, handleSubmit },
+  onClick,
+}: Props) {
   return (
     <FormControl>
       <TextField

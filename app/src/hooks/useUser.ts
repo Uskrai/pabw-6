@@ -14,12 +14,15 @@ export function useUser(): UseUser {
   const { token, isLogin } = useAuth();
   const [isLoading, setIsLoading] = React.useState(true);
 
-  const { data, error, mutate, isValidating, isLoading: isSwrLoading } = useAuthSWR<User>(
-    "/api/v1/auth/profile",
-    {
-      shouldRetryOnError: isLogin,
-    }
-  );
+  const {
+    data,
+    error,
+    mutate,
+    isValidating,
+    isLoading: isSwrLoading,
+  } = useAuthSWR<User>("/api/v1/auth/profile", {
+    shouldRetryOnError: isLogin,
+  });
 
   const [user, setUser] = React.useState(data);
 

@@ -17,9 +17,7 @@ interface Props {
 export default function Show(props: Props) {
   let { id } = useParams();
 
-  let { data, isLoading } = useAuthSWR<User>(
-    `/api/v1/account/${id}`,
-  );
+  let { data, isLoading } = useAuthSWR<User>(`/api/v1/account/${id}`);
 
   const navigate = useNavigate();
   const { token } = useAuth();
@@ -31,13 +29,15 @@ export default function Show(props: Props) {
   let user = data!;
 
   let onDelete = async () => {
-    await axios.delete(`/api/v1/account/${id}`, { headers: {Authorization: `Bearer ${token}`}});
+    await axios.delete(`/api/v1/account/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     mutate("/api/v1/account");
     navigate(`/admin/account/${props.role.toLowerCase()}`);
-  }
+  };
 
   return (
-    <Card sx={{ m: 2}}>
+    <Card sx={{ m: 2 }}>
       <CardContent>
         <Typography gutterBottom variant="h5" component="div">
           Nama: {user.email}
@@ -55,8 +55,15 @@ export default function Show(props: Props) {
         {/* <Typography variant="body2">Stok: {product.stock}</Typography> */}
       </CardContent>
       <CardActions>
-        <Link to={`/admin/account/${props.role.toLowerCase()}/${user.id}/edit`}>Edit</Link>
-        <Link to={`/admin/account/${props.role.toLowerCase()}/${user.id}`} onClick={onDelete}>Delete</Link>
+        <Link to={`/admin/account/${props.role.toLowerCase()}/${user.id}/edit`}>
+          Edit
+        </Link>
+        <Link
+          to={`/admin/account/${props.role.toLowerCase()}/${user.id}`}
+          onClick={onDelete}
+        >
+          Delete
+        </Link>
       </CardActions>
     </Card>
   );

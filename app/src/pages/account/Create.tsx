@@ -13,8 +13,8 @@ interface Props {
 export default function CreateProduct(props: Props) {
   const form = useForm<UserForm>({
     defaultValues: {
-      role: props.role
-    }
+      role: props.role,
+    },
   });
 
   const { token } = useAuth();
