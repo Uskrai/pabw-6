@@ -110,7 +110,9 @@ where
                 "_id": id,
             },
             bson::doc! {
-                "deleted_at": bson::DateTime::from(time::OffsetDateTime::now_utc()),
+                "$set": {
+                    "deleted_at": bson::DateTime::from(time::OffsetDateTime::now_utc()),
+                }
             },
             None,
         )
