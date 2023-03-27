@@ -17,6 +17,11 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { useUser } from "./hooks/useUser";
 
+const formatter = new Intl.NumberFormat("id", {
+  style: "currency",
+  currency: "IDR",
+});
+
 function ResponsiveAppBar() {
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(
     null
@@ -159,14 +164,16 @@ function ResponsiveAppBar() {
             {user.isLoading ? (
               <>
                 <CircularProgress />
-                {/* <Spinn */}
               </>
             ) : settings ? (
               <>
+                <Typography component="a" sx={{ m: 4 }}>
+                  {formatter.format(user?.user?.balance || "" as any) }
+                </Typography>
+
                 <Tooltip title="Open settings">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                      {user?.user?.email}
-                    {/* <AccountCircle /> */}
+                    {user?.user?.email}
                   </IconButton>
                 </Tooltip>
                 <Menu
