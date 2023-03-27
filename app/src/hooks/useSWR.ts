@@ -28,9 +28,10 @@ export function useAuthSWR<T>(url: string, options?: Partial<PublicConfiguration
   React.useEffect(() => {
     if (token && swrData) {
       setData(swrData?.data);
-    } else if (!token || error?.response.status == 401) {
+    } else if (!token && error?.response?.status == 401) {
       setData(null);
-    } else if (token && error?.response.status == 401) {
+    } 
+    if (token && error?.response?.status == 401) {
       authMutate();
     }
 
