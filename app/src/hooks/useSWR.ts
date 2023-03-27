@@ -5,7 +5,7 @@ import { PublicConfiguration } from "swr/_internal";
 import { useAuth } from "./useAuth";
 
 export function useAuthSWR<T>(
-  url: string,
+  url: string | null,
   options?: Partial<PublicConfiguration> | undefined
 ) {
   const { isLoading: isAuthLoading, token, mutate: authMutate } = useAuth();
@@ -18,7 +18,7 @@ export function useAuthSWR<T>(
     mutate,
     isValidating,
   } = useSWR(
-    token ? [url, token] : null,
+    token && url ? [url, token] : null,
     ([url, token]) => {
       return axios.get(url, {
         headers: {
