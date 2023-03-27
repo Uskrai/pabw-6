@@ -11,6 +11,7 @@ import { useAuth, useProvidedAuth } from "./hooks/useAuth";
 import { useUser } from "./hooks/useUser";
 
 const Landing = React.lazy(() => import("./Landing"));
+const Product = React.lazy(() => import("./Product"));
 const Login = React.lazy(() => import("./Login"));
 const Register = React.lazy(() => import("./pages/auth/Register"));
 const Account = React.lazy(() => import("./pages/account/Index"));
@@ -86,6 +87,10 @@ const router = createBrowserRouter([
     path: "/",
     element: <Landing />,
     children: [],
+  },
+  {
+    path: "/:merchant_id/:product_id",
+    element: <Product />,
   },
   {
     path: "/login",
