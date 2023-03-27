@@ -227,6 +227,7 @@ mod tests {
             email: "".to_string(),
             password: "".to_string(),
             role: Default::default(),
+            balance: Default::default(),
 
             created_at: DateTime::now(),
             updated_at: DateTime::now(),
@@ -263,6 +264,7 @@ mod tests {
             email: "".to_string(),
             password: "".to_string(),
             role: Default::default(),
+            balance: Default::default(),
 
             created_at: DateTime::now(),
             updated_at: DateTime::now(),
