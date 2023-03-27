@@ -63,7 +63,7 @@ export default function EditProduct(props: Props) {
             }
           );
 
-          mutate("/api/v1/account");
+          mutate(["/api/v1/account", token]);
           mutateNow();
           navigate(`/admin/account/${e.role.toLowerCase()}/${account.id}`);
         } catch (e) {}

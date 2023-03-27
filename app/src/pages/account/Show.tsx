@@ -32,7 +32,8 @@ export default function Show(props: Props) {
     await axios.delete(`/api/v1/account/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    mutate("/api/v1/account");
+
+    mutate(["/api/v1/account", token]);
     navigate(`/admin/account/${props.role.toLowerCase()}`);
   };
 

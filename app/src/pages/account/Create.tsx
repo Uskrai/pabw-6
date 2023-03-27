@@ -29,7 +29,7 @@ export default function CreateProduct(props: Props) {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        mutate("/api/v1/account");
+        mutate(["/api/v1/account", token]);
         navigate(`/admin/account/${e.role}/${res.data.id}`);
       }}
     />
