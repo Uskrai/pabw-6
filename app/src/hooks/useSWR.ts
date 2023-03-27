@@ -9,7 +9,7 @@ export function useAuthSWR<T>(url: string, options?: Partial<PublicConfiguration
   const [isLoading, setIsLoading] = React.useState(true);
 
   const {
-    data,
+    data: swrData,
     isLoading: isSwrLoading,
     error,
     mutate,
@@ -23,25 +23,25 @@ export function useAuthSWR<T>(url: string, options?: Partial<PublicConfiguration
     options as any
   );
 
-  const [user, setUser] = React.useState(data?.data);
+  const [data, setData] = React.useState(swrData?.data);
 
   React.useEffect(() => {
-    if (token && data) {
-      setUser(data?.data);
+    if (token && swrData) {
+      setData(swrData?.data);
     } else if (!token || error?.response.status == 401) {
-      setUser(null);
+      setData(null);
     } else if (token && error?.response.status == 401) {
       authMutate();
     }
 
     setIsLoading(isAuthLoading || isSwrLoading);
-  }, [token, data, error, isAuthLoading, isSwrLoading]);
+  }, [token, swrData, error, isAuthLoading, isSwrLoading]);
 
   return {
     isLoading,
     // isLoading: isAuthLoading || isSwrLoading,
     isValidating,
-    data: user as T | null,
+    data: data as T | null,
     error,
     mutate,
   };
