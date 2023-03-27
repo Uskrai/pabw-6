@@ -45,13 +45,23 @@ export default function EditProduct(props: Props) {
   return (
     <Form
       form={form}
+      withPassword={true}
       onClick={async (e) => {
         try {
-          let res = await axios.put(`/api/v1/account/${account?.id}`, e, {
-            headers: {
-              Authorization: `Bearer ${token}`,
+          let res = await axios.put(
+            `/api/v1/account/${account?.id}`,
+            {
+              ...e,
+              password: e.password != "" ? e.password : null,
+              confirm_password:
+                e.confirm_password != "" ? e.confirm_password : null,
             },
-          });
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
 
           mutate("/api/v1/account");
           mutateNow();
