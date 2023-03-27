@@ -35,20 +35,22 @@ export default function Index(props: Props) {
       <AppBar />
 
       <Grid container>
-        {!isLoading ? (
-          <Grid item xs={4}>
-            <Link to={`/admin/account/${props.role.toLowerCase()}/create`}>
-              New
-            </Link>
-            {accounts?.map((it) => (
-              <div key={it.id}>
-                <ItemCard user={it} role={props.role} />
-              </div>
-            ))}
-          </Grid>
-        ) : (
-          <CircularProgress />
-        )}
+        <Grid item xs>
+          {!isLoading ? (
+            <>
+              <Link to={`/admin/account/${props.role.toLowerCase()}/create`}>
+                New
+              </Link>
+              {accounts?.map((it) => (
+                <div key={it.id}>
+                  <ItemCard user={it} role={props.role} />
+                </div>
+              ))}
+            </>
+          ) : (
+            <CircularProgress />
+          )}
+        </Grid>
 
         <Divider orientation="vertical" flexItem />
         <Grid item xs>
