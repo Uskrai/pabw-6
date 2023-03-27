@@ -35,11 +35,19 @@ const ProtectedRoute = ({
   const user = useUser();
   login = login === true;
 
+  if (auth.isLoading) {
+    return <CircularProgress />;
+  }
+
   if (auth.isLogin !== login) {
     return <Navigate to="/" />;
   }
 
   if (role != undefined) {
+    if (user.isLoading) {
+      return <CircularProgress />;
+    }
+
     if (user.user?.role !== role) {
       return <Navigate to="/" />;
     }
