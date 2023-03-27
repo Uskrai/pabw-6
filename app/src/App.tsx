@@ -12,6 +12,8 @@ import { useUser } from "./hooks/useUser";
 
 const Landing = React.lazy(() => import("./Landing"));
 const Product = React.lazy(() => import("./Product"));
+const OrderIndex = React.lazy(() => import("./pages/order/Index"));
+const OrderShow  = React.lazy(() => import("./pages/order/Show"));
 const Login = React.lazy(() => import("./Login"));
 const Register = React.lazy(() => import("./pages/auth/Register"));
 const Account = React.lazy(() => import("./pages/account/Index"));
@@ -107,6 +109,20 @@ const router = createBrowserRouter([
         <Register />
       </ProtectedRoute>
     ),
+  },
+  {
+    path: "/user/order",
+    element: (
+      <ProtectedRoute login={true} role="Customer">
+        <OrderIndex />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        path: "/user/order/:id",
+        element: <OrderShow />
+      }
+    ]
   },
   {
     path: "/user/product",
