@@ -21,7 +21,7 @@ pub struct IndexResponse {
 }
 
 pub async fn index(State(collection): State<UserCollection>) -> Result<Json<IndexResponse>, Error> {
-    let mut cursor = collection.find(None, None).await?;
+    let mut cursor = collection.find_exists(None).await?;
 
     let mut accounts = vec![];
 
