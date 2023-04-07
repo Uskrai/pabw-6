@@ -5,12 +5,12 @@ title Melihat Barang
 |D| Database
 |U|
 start
-:Membuka halaman keranjang;
+:Membuka halaman barang;
 |S|
-:Mengambil data keranjang;
+:Mengambil data barang;
 |D|
-:Mengirim data keranjang;
+:Mengirim data barang;
 |S|
-:Menampilkan halaman keranjang;
+:Menampilkan halaman barang;
 stop
 @enduml
