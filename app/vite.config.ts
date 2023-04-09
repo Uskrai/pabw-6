@@ -1,20 +1,20 @@
 import react from "@vitejs/plugin-react-swc";
-import path from "path";
+// import path from "path";
 import { defineConfig } from "vite";
 import { dependencies } from "./package.json";
 
-function buildRollupInput(isDevelopment: boolean) {
-  const rollupInput: { [entryAlias: string]: string } = isDevelopment
-    ? {
-        "dev.tsx": path.resolve(__dirname, "./src/dev.tsx"),
-      }
-    : {};
-
-  return rollupInput;
-}
+// function buildRollupInput(isDevelopment: boolean) {
+//   const rollupInput: { [entryAlias: string]: string } = isDevelopment
+//     ? {
+//         "dev.tsx": path.resolve(__dirname, "./src/dev.tsx"),
+//       }
+//     : {};
+//
+//   return rollupInput;
+// }
 
 function renderChunks(deps: Record<string, string>) {
-  let chunks = {};
+  const chunks = {};
   Object.keys(deps).forEach((key) => {
     if (
       [
@@ -35,7 +35,7 @@ function renderChunks(deps: Record<string, string>) {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(async ({}) => ({
+export default defineConfig(async () => ({
   clearScreen: false,
   build: {
     manifest: true,

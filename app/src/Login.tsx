@@ -9,13 +9,13 @@ interface FormData {
 }
 
 export default function Login() {
-  let { register, handleSubmit, formState } = useForm<FormData>();
+  const { register, handleSubmit, formState } = useForm<FormData>();
   const auth = useAuth();
   const navigate = useNavigate();
 
-  let onClick = async (e: FormData) => {
+  const onClick = async (e: FormData) => {
     try {
-      let res = await axios.post("/api/v1/auth/login", {
+      const res = await axios.post("/api/v1/auth/login", {
         email: e.email,
         password: e.password,
       });

@@ -31,7 +31,7 @@ interface GetProducts {
 
 export default function Index() {
   const user = useUser();
-  let { data }: { data: GetProducts } = useSWR("/api/v1/product", (url) =>
+  const { data }: { data: GetProducts } = useSWR("/api/v1/product", (url) =>
     axios.get(url).then((it) => it.data)
   );
 

@@ -15,9 +15,9 @@ interface Props {
 }
 
 export default function Show(props: Props) {
-  let { id } = useParams();
+  const { id } = useParams();
 
-  let { data, isLoading } = useAuthSWR<User>(`/api/v1/account/${id}`);
+  const { data, isLoading } = useAuthSWR<User>(`/api/v1/account/${id}`);
 
   const navigate = useNavigate();
   const { token } = useAuth();
@@ -26,9 +26,9 @@ export default function Show(props: Props) {
     return <CircularProgress />;
   }
 
-  let user = data!;
+  const user = data!;
 
-  let onDelete = async () => {
+  const onDelete = async () => {
     await axios.delete(`/api/v1/account/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });

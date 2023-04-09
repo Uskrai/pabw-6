@@ -23,7 +23,7 @@ interface Props {
 }
 
 export default function Index(props: Props) {
-  let { data, isLoading } = useAuthSWR<GetUsers>("/api/v1/account");
+  const { data, isLoading } = useAuthSWR<GetUsers>("/api/v1/account");
 
   const accounts = useMemo(
     () => data?.accounts?.filter((it) => it.role == props.role),

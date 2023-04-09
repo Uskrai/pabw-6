@@ -13,7 +13,7 @@ import { User } from "../../models/User";
 import { Product } from "../../models/Product";
 
 export default function ShowProduct() {
-  let { data, isLoading } = useAuthSWR<GetOrder>(`/api/v1/order`);
+  const { data, isLoading } = useAuthSWR<GetOrder>("/api/v1/order");
 
   if (isLoading) {
     return <CircularProgress />;
@@ -42,7 +42,7 @@ export default function ShowProduct() {
 
 function OrderCard({ order }: { order: Transaction }) {
   const navigate = useNavigate();
-  let { data: merchant } = useAuthSWR<User>(
+  const { data: merchant } = useAuthSWR<User>(
     `/api/v1/account/${order.merchant_id}`
   );
 

@@ -9,9 +9,9 @@ import { Product, ProductForm } from "../../models/Product";
 import Form from "./Form";
 
 export default function EditProduct() {
-  let { id } = useParams();
+  const { id } = useParams();
 
-  let {
+  const {
     data,
     isLoading,
     mutate: mutateNow,
@@ -19,7 +19,7 @@ export default function EditProduct() {
     axios.get(url)
   );
 
-  let product = data?.data!;
+  const product = data?.data!;
 
   const navigate = useNavigate();
   const form = useForm<ProductForm>({
@@ -43,7 +43,7 @@ export default function EditProduct() {
       form={form}
       onClick={async (e) => {
         try {
-          let res = await axios.put(`/api/v1/product/${product?.id}`, e, {
+          const res = await axios.put(`/api/v1/product/${product?.id}`, e, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
