@@ -5,6 +5,7 @@ use bson::oid::ObjectId;
 use num_bigint::BigInt;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use validator::Validate;
 
 use crate::{
@@ -25,7 +26,7 @@ pub struct Transaction {
     pub user_id: ObjectId,
     pub merchant_id: ObjectId,
     pub price: Decimal,
-    pub status: TransactionStatus,
+    pub status: Vec<TransactionStatus>,
     pub products: Vec<ProductTransaction>,
 
     pub created_at: bson::DateTime,
@@ -40,9 +41,25 @@ pub struct ProductTransaction {
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", content = "content")]
-pub enum TransactionStatus {
+pub enum TransactionStatusType {
     Processing,
+    WaitingForCourier,
     Send,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TransactionStatus {
+    r#type: TransactionStatusType,
+    date: bson::DateTime,
+}
+
+impl TransactionStatus {
+    pub fn new(r#type: TransactionStatusType) -> Self {
+        Self {
+            r#type,
+            date: OffsetDateTime::now_utc().into(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -51,11 +68,26 @@ pub struct TransactionModel {
     pub user_id: ObjectIdString,
     pub merchant_id: ObjectIdString,
     pub price: DecimalString,
-    pub status: TransactionStatus,
+    pub status: Vec<TransactionStatusModel>,
     pub products: Vec<ProductTransactionModel>,
 
     pub created_at: FormattedDateTime,
     pub updated_at: FormattedDateTime,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TransactionStatusModel {
+    pub r#type: TransactionStatusType,
+    date: FormattedDateTime,
+}
+
+impl From<TransactionStatus> for TransactionStatusModel {
+    fn from(value: TransactionStatus) -> Self {
+        Self {
+            r#type: value.r#type,
+            date: value.date.into(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -71,7 +103,7 @@ impl From<Transaction> for TransactionModel {
             user_id: value.user_id.into(),
             merchant_id: value.merchant_id.into(),
             price: value.price.into(),
-            status: value.status,
+            status: value.status.into_iter().map(|it| it.into()).collect(),
             products: value.products.into_iter().map(|it| it.into()).collect(),
 
             created_at: value.created_at.into(),
@@ -113,9 +145,12 @@ pub async fn index_order(
     user: UserAccess,
 ) -> Result<Json<OrderIndexResponse>, Error> {
     let mut cursor = collection
-        .find_exists(bson::doc! {
-            "user_id": user.id
-        })
+        .find_exists(
+            bson::doc! {
+                "user_id": user.id
+            },
+            None,
+        )
         .await?;
 
     let mut orders = vec![];
@@ -264,7 +299,7 @@ pub async fn insert_order(
         price,
         merchant_id,
         products,
-        status: TransactionStatus::Processing,
+        status: vec![TransactionStatus::new(TransactionStatusType::Processing)],
 
         created_at: time::OffsetDateTime::now_utc().into(),
         updated_at: time::OffsetDateTime::now_utc().into(),
@@ -309,6 +344,80 @@ pub async fn insert_order(
     }
 
     session.commit_transaction().await?;
+
+    Ok(Json(transaction.into()))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TransactionIndexResponse {
+    transactions: Vec<TransactionModel>,
+}
+
+pub async fn index(
+    State(transactions): State<TransactionCollection>,
+    user: UserAccess,
+) -> Result<Json<TransactionIndexResponse>, Error> {
+    let mut cursor = transactions
+        .find_exists(bson::doc! { "merchant_id": user.id }, None)
+        .await?;
+
+    let mut result = vec![];
+
+    while cursor.advance().await? {
+        let val = cursor.deserialize_current()?;
+        result.push(val.into());
+    }
+
+    Ok(Json(TransactionIndexResponse {
+        transactions: result,
+    }))
+}
+
+pub async fn show(
+    State(transactions): State<TransactionCollection>,
+    user: UserAccess,
+    PathObjectId(path): PathObjectId,
+) -> Result<Json<TransactionModel>, Error> {
+    let transaction = transactions
+        .find_exists_one_by_id(path)
+        .await?
+        .filter(|it| it.merchant_id == user.id)
+        .ok_or(Error::Forbidden)?;
+
+    Ok(Json(transaction.into()))
+}
+
+pub async fn confirm(
+    State(transactions): State<TransactionCollection>,
+    user: UserAccess,
+    PathObjectId(path): PathObjectId,
+) -> Result<Json<TransactionModel>, Error> {
+    let mut transaction = transactions
+        .find_exists_one_by_id(path)
+        .await?
+        .filter(|it| it.merchant_id == user.id)
+        .filter(|it| {
+            it.status
+                .iter()
+                .find(|it| matches!(it.r#type, TransactionStatusType::WaitingForCourier))
+                .is_none()
+        })
+        .ok_or(Error::Forbidden)?;
+
+    transaction.status.push(TransactionStatus::new(
+        TransactionStatusType::WaitingForCourier,
+    ));
+
+    transactions
+        .update_exists_one_by_id(
+            path,
+            bson::doc! {
+                "$set": {
+                    "status": bson::to_bson(&transaction.status)?,
+                }
+            },
+        )
+        .await?;
 
     Ok(Json(transaction.into()))
 }

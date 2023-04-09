@@ -58,6 +58,9 @@ function ResponsiveAppBar() {
     Customer: user?.user?.role == "Admin" ? "/admin/account/customer" : null,
     Courier: user?.user?.role == "Admin" ? "/admin/account/courier" : null,
     Order: user?.user?.role == "Customer" ? "/user/order" : null,
+    Transaction: ["Customer", "Admin"].includes(user?.user?.role ?? "")
+      ? "/user/transaction"
+      : null,
     // Accounts: user.user?.role == "Admin" ? "/admin/account" : null,
   }).filter(([_, it]) => it != null);
   const settings = user.user

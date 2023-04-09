@@ -41,6 +41,7 @@ where
     pub async fn find_exists(
         &self,
         filter: impl Into<Option<bson::Document>>,
+        options: impl Into<Option<mongodb::options::FindOptions>>,
     ) -> Result<mongodb::Cursor<T>, mongodb::error::Error> {
         let doc = filter.into();
 
@@ -51,7 +52,7 @@ where
             filter.extend(it);
         }
 
-        self.find(filter, None).await
+        self.find(filter, options).await
     }
 
     /// Finds a single document in the collection with matchi id and null deleted_at.
