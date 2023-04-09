@@ -113,9 +113,12 @@ pub async fn index_order(
     user: UserAccess,
 ) -> Result<Json<OrderIndexResponse>, Error> {
     let mut cursor = collection
-        .find_exists(bson::doc! {
-            "user_id": user.id
-        })
+        .find_exists(
+            bson::doc! {
+                "user_id": user.id
+            },
+            None,
+        )
         .await?;
 
     let mut orders = vec![];
