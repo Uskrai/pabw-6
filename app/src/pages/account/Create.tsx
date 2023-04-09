@@ -25,7 +25,7 @@ export default function CreateProduct(props: Props) {
       form={form}
       withPassword={true}
       onClick={async (e) => {
-        let res = await axios.post("/api/v1/account/", e, {
+        const res = await axios.post("/api/v1/account/", e, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

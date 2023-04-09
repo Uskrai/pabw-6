@@ -14,15 +14,15 @@ interface Props {
 }
 
 export default function EditProduct(props: Props) {
-  let { id } = useParams();
+  const { id } = useParams();
 
-  let {
+  const {
     data,
     isLoading,
     mutate: mutateNow,
   } = useAuthSWR<User>(`/api/v1/account/${id}`);
 
-  let account = data!;
+  const account = data;
 
   const navigate = useNavigate();
   const form = useForm<UserForm>({
@@ -33,7 +33,9 @@ export default function EditProduct(props: Props) {
   });
 
   React.useEffect(() => {
-    form.reset(account!);
+    if (account != null) {
+      form.reset(account!);
+    }
   }, [isLoading]);
 
   const { token } = useAuth();
@@ -47,26 +49,24 @@ export default function EditProduct(props: Props) {
       form={form}
       withPassword={true}
       onClick={async (e) => {
-        try {
-          let res = await axios.put(
-            `/api/v1/account/${account?.id}`,
-            {
-              ...e,
-              password: e.password != "" ? e.password : null,
-              confirm_password:
-                e.confirm_password != "" ? e.confirm_password : null,
+        const res = await axios.put(
+          `/api/v1/account/${account?.id}`,
+          {
+            ...e,
+            password: e.password != "" ? e.password : null,
+            confirm_password:
+              e.confirm_password != "" ? e.confirm_password : null,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
             },
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
+          }
+        );
 
-          mutate(["/api/v1/account", token]);
-          mutateNow();
-          navigate(`/admin/account/${e.role.toLowerCase()}/${account.id}`);
-        } catch (e) {}
+        mutate(["/api/v1/account", token]);
+        mutateNow();
+        navigate(`/admin/account/${e.role.toLowerCase()}/${account?.id}`);
       }}
     />
   );

@@ -16,7 +16,7 @@ export default function CreateProduct() {
     <Form
       form={form}
       onClick={async (e) => {
-        let res = await axios.post("/api/v1/product/", e, {
+        const res = await axios.post("/api/v1/product/", e, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

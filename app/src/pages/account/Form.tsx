@@ -66,7 +66,9 @@ export default function Form({
         fullWidth
       />
 
-      <Button onClick={handleSubmit(onClick)}>Submit</Button>
+      <Button disabled={formState.isSubmitting} onClick={handleSubmit(onClick)}>
+        Submit
+      </Button>
     </FormControl>
   );
 }

@@ -10,22 +10,22 @@ import { useAuth } from "../../hooks/useAuth";
 import { Product } from "../../models/Product";
 
 export default function ShowProduct() {
-  let { id } = useParams();
+  const { id } = useParams();
 
-  let { data, isLoading } = useSWR<{ data: Product }>(
+  const { data, isLoading } = useSWR<{ data: Product }>(
     `/api/v1/product/${id}`,
     (url) => axios.get(url)
   );
   const navigate = useNavigate();
   const { token } = useAuth();
 
-  if (isLoading) {
+  if (isLoading || data?.data == null) {
     return <CircularProgress />;
   }
 
-  let product = data?.data!;
+  const product = data?.data;
 
-  let onDelete = async () => {
+  const onDelete = async () => {
     await axios.delete(`/api/v1/product/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });

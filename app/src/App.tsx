@@ -9,6 +9,7 @@ import "./App.css";
 import { AuthContext } from "./context/User";
 import { useAuth, useProvidedAuth } from "./hooks/useAuth";
 import { useUser } from "./hooks/useUser";
+import { UserRole } from "./models/User";
 
 const Landing = React.lazy(() => import("./Landing"));
 const Product = React.lazy(() => import("./Product"));
@@ -16,6 +17,8 @@ const OrderIndex = React.lazy(() => import("./pages/order/Index"));
 const OrderShow = React.lazy(() => import("./pages/order/Show"));
 const Login = React.lazy(() => import("./Login"));
 const Register = React.lazy(() => import("./pages/auth/Register"));
+const TransactionIndex = React.lazy(() => import("./pages/transaction/Index"));
+const TransactionShow = React.lazy(() => import("./pages/transaction/Show"));
 const AccountIndex = React.lazy(() => import("./pages/account/Index"));
 const AccountShow = React.lazy(() => import("./pages/account/Show"));
 const AccountEdit = React.lazy(() => import("./pages/account/Edit"));
@@ -27,7 +30,7 @@ const ProductCreate = React.lazy(() => import("./pages/product/Create"));
 
 interface ProtectedRouteProps extends React.PropsWithChildren {
   login: boolean;
-  role?: "Admin" | "Customer" | "Courier";
+  role?: UserRole | UserRole[];
 }
 const ProtectedRoute = ({
   children,
@@ -38,6 +41,8 @@ const ProtectedRoute = ({
   const user = useUser();
   login = login === true;
 
+  const roles = typeof role === "string" ? [role] : role;
+
   if (auth.isLoading) {
     return <CircularProgress />;
   }
@@ -46,12 +51,12 @@ const ProtectedRoute = ({
     return <Navigate to="/" />;
   }
 
-  if (role != undefined) {
+  if (roles != undefined) {
     if (user.isLoading) {
       return <CircularProgress />;
     }
 
-    if (user.user?.role !== role) {
+    if (roles.includes(user.user?.role ?? ("" as UserRole))) {
       return <Navigate to="/" />;
     }
   }

@@ -10,11 +10,11 @@ interface FormData {
 }
 
 export default function Register() {
-  let { register, handleSubmit, formState } = useForm<FormData>();
+  const { register, handleSubmit, formState } = useForm<FormData>();
   const auth = useAuth();
   const navigate = useNavigate();
 
-  let onClick = async (e: FormData) => {
+  const onClick = async (e: FormData) => {
     try {
       console.log(e.confirmPassword);
       let res = await axios.post("/api/v1/auth/register", {

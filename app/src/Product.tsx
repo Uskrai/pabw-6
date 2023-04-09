@@ -11,6 +11,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
 import AppBar from "./AppBar";
 import { useAuth } from "./hooks/useAuth";
+import { useUser } from "./hooks/useUser";
 import { Product } from "./models/Product";
 
 interface BuyForm {
@@ -18,9 +19,9 @@ interface BuyForm {
 }
 
 export default function ShowProduct() {
-  let { product_id } = useParams();
+  const { product_id } = useParams();
 
-  let { data, isLoading } = useSWR<{ data: Product }>(
+  const { data, isLoading } = useSWR<{ data: Product }>(
     `/api/v1/product/${product_id}`,
     (url) => axios.get(url)
   );
@@ -33,12 +34,13 @@ export default function ShowProduct() {
   });
 
   const { token } = useAuth();
+  const { user } = useUser();
 
   if (isLoading) {
     return <CircularProgress />;
   }
 
-  let product = data?.data!;
+  const product = data?.data!;
 
   function onBuy(e: BuyForm) {
     axios.post(
@@ -92,7 +94,7 @@ export default function ShowProduct() {
           )}
         </CardContent>
 
-        {token && (
+        {token && product.user_id != user?.id && (
           <CardActions>
             <Link to="" onClick={form.handleSubmit(onBuy)}>
               Buy
