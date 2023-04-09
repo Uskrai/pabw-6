@@ -118,6 +118,12 @@ impl From<OffsetDateTime> for FormattedDateTime {
     }
 }
 
+impl From<FormattedDateTime> for bson::DateTime {
+    fn from(value: FormattedDateTime) -> Self {
+        value.0.into()
+    }
+}
+
 pub fn verify_password(argon: &Argon2, password: &str, hashed: &str) -> bool {
     let hashed = match PasswordHash::new(hashed) {
         Ok(hashed) => hashed,

@@ -67,6 +67,16 @@ async fn main() {
                         "/",
                         routing::post(ecommerce::api::v1::transaction::insert_order),
                     ),
+            )
+            .nest(
+                "/transaction",
+                Router::new()
+                    .route("/", routing::get(ecommerce::api::v1::transaction::index))
+                    .route("/:id", routing::get(ecommerce::api::v1::transaction::show))
+                    .route(
+                        "/:id/confirm",
+                        routing::post(ecommerce::api::v1::transaction::confirm),
+                    ),
             ),
     );
 
