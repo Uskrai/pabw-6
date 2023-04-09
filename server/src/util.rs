@@ -71,7 +71,9 @@ impl<S> axum::extract::FromRequestParts<S> for PathObjectId {
         let string = req.extract::<axum::extract::Path<String>>().await?;
 
         Ok(PathObjectId(
-            string.parse().map_err(|_| crate::error::Error::NoResource)?,
+            string
+                .parse()
+                .map_err(|_| crate::error::Error::NoResource)?,
         ))
     }
 }
