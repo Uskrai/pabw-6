@@ -151,6 +151,20 @@ const router = createBrowserRouter([
       },
     ],
   },
+  {
+    path: "/user/transaction",
+    element: (
+      <ProtectedRoute login={true}>
+        <TransactionIndex />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        path: "/user/transaction/:id",
+        element: <TransactionShow />,
+      }
+    ]
+  },
   account("Customer"),
   account("Courier"),
 ]);
