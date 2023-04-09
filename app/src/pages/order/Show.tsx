@@ -14,8 +14,12 @@ import { User } from "../../models/User";
 export default function ShowProduct() {
   const { id } = useParams();
 
-  const { data: order, isLoading } = useAuthSWR<Transaction>(`/api/v1/order/${id}`);
-  const { data: merchant } = useAuthSWR<User>(order ? `/api/v1/account/${order.merchant_id}` : null);
+  const { data: order, isLoading } = useAuthSWR<Transaction>(
+    `/api/v1/order/${id}`
+  );
+  const { data: merchant } = useAuthSWR<User>(
+    order ? `/api/v1/account/${order.merchant_id}` : null
+  );
 
   if (isLoading && order == null) {
     return <CircularProgress />;

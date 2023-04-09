@@ -8,7 +8,12 @@ import Typography from "@mui/material/Typography";
 import { Outlet, useNavigate } from "react-router-dom";
 import AppBar from "../../AppBar";
 import { useAuthSWR } from "../../hooks/useSWR";
-import { GetOrder, GetTransaction, statusToString, Transaction } from "../../models/Transaction";
+import {
+  GetOrder,
+  GetTransaction,
+  statusToString,
+  Transaction,
+} from "../../models/Transaction";
 import { User } from "../../models/User";
 import { Product } from "../../models/Product";
 

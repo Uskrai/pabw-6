@@ -162,8 +162,8 @@ const router = createBrowserRouter([
       {
         path: "/user/transaction/:id",
         element: <TransactionShow />,
-      }
-    ]
+      },
+    ],
   },
   account("Customer"),
   account("Courier"),

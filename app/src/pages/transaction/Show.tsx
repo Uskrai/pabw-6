@@ -35,7 +35,10 @@ export default function ShowProduct() {
 
   const { token } = useAuth();
 
-  const reversedStatus = useMemo(() => order?.status?.map((it) => it).reverse(), [order?.status]);
+  const reversedStatus = useMemo(
+    () => order?.status?.map((it) => it).reverse(),
+    [order?.status]
+  );
 
   if (isLoading && order == null) {
     return <CircularProgress />;
