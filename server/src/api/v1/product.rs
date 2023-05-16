@@ -46,7 +46,7 @@ impl std::ops::Deref for ProductCollection {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Product {
     pub id: ObjectIdString,
     pub user_id: ObjectIdString,
@@ -138,6 +138,10 @@ pub async fn create(
         super::auth::UserRole::Customer | super::auth::UserRole::Admin => {}
     }
 
+    if request.price <= 0.into() || request.stock.0 <= 0.into() {
+        return Err(Error::Forbidden);
+    }
+
     let id = ObjectId::new();
 
     let model = ProductModel {
@@ -175,6 +179,10 @@ pub async fn update(
     match user.role {
         crate::api::v1::auth::UserRole::Courier => return Err(Error::Forbidden),
         crate::api::v1::auth::UserRole::Customer | crate::api::v1::auth::UserRole::Admin => {}
+    }
+
+    if request.price < 0.into() || request.stock.0 < 0.into() {
+        return Err(Error::Forbidden);
     }
 
     let product_id = ObjectId::from_str(&product_id).map_err(|_| Error::NoResource)?;
@@ -252,4 +260,171 @@ pub async fn delete(
         .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::{extract::Path, Json};
+    use num_bigint::BigInt;
+    use rust_decimal::Decimal;
+
+    use crate::api::v1::{auth::UserRole, tests::bootstrap};
+
+    use super::{CreateRequest, UpdateRequest};
+
+    #[tokio::test]
+    pub async fn test_customer_can_insert() {
+        let bootstrap = bootstrap()
+            .await
+            .derive("customer@email.com", "password", UserRole::Customer)
+            .await;
+
+        let Json(product) = super::create(
+            bootstrap.product_collection(),
+            bootstrap.user_access(),
+            Json(CreateRequest {
+                name: "test".to_string(),
+                description: "".to_string(),
+                price: Decimal::from(1),
+                stock: BigInt::from(1).into(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let model = bootstrap
+            .app_state
+            .product_collection
+            .find_exists_one_by_id(product.id.into())
+            .await
+            .unwrap()
+            .expect("product should exist after create");
+
+        assert_eq!(product, model.into())
+    }
+
+    #[tokio::test]
+    pub async fn test_courier_cannot_insert() {
+        let bootstrap = bootstrap().await;
+
+        let bootstrap = bootstrap
+            .derive("courier@email.com", "password", UserRole::Courier)
+            .await;
+
+        let product = super::create(
+            bootstrap.product_collection(),
+            bootstrap.user_access(),
+            Json(CreateRequest {
+                name: "name".to_string(),
+                description: "description".to_string(),
+                price: Decimal::from(1),
+                stock: BigInt::from(1).into(),
+            }),
+        )
+        .await
+        .expect_err("courier should not be able to create product");
+    }
+
+    #[tokio::test]
+    pub async fn test_customer_can_update() {
+        let bootstrap = bootstrap()
+            .await
+            .derive("customer@email.com", "password", UserRole::Customer)
+            .await;
+
+        let Json(product) = super::create(
+            bootstrap.product_collection(),
+            bootstrap.user_access(),
+            Json(CreateRequest {
+                name: "name".to_string(),
+                description: "description".to_string(),
+                price: Decimal::from(1),
+                stock: BigInt::from(1).into(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let Json(update) = super::update(
+            bootstrap.user_access(),
+            bootstrap.product_collection(),
+            Path(product.id.to_string()),
+            Json(UpdateRequest {
+                name: "up-name".to_string(),
+                description: "up-description".to_string(),
+                price: Decimal::from(10),
+                stock: BigInt::from(10).into(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(update.name, "up-name");
+        assert_eq!(update.description, "up-description");
+        assert_eq!(update.price, Decimal::from(10));
+        assert_eq!(update.stock, BigInt::from(10).into());
+    }
+
+    #[tokio::test]
+    pub async fn test_customer_can_delete() {
+        let bootstrap = bootstrap()
+            .await
+            .derive("customer@email.com", "password", UserRole::Customer)
+            .await;
+
+        let Json(product) = super::create(
+            bootstrap.product_collection(),
+            bootstrap.user_access(),
+            Json(CreateRequest {
+                name: "name".to_string(),
+                description: "description".to_string(),
+                price: Decimal::from(1),
+                stock: BigInt::from(1).into(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        super::delete(
+            bootstrap.product_collection(),
+            bootstrap.user_access(),
+            Path(product.id.to_string()),
+        )
+        .await
+        .unwrap();
+
+        super::show(bootstrap.product_collection(), Path(product.id.to_string()))
+            .await
+            .expect_err("product should be deleted");
+    }
+    #[tokio::test]
+    pub async fn test_customer_can_view_all() {
+        let bootstrap = bootstrap()
+            .await
+            .derive("customer@email.com", "password", UserRole::Customer)
+            .await;
+
+        let Json(product) = super::create(
+            bootstrap.product_collection(),
+            bootstrap.user_access(),
+            Json(CreateRequest {
+                name: "test".to_string(),
+                description: "".to_string(),
+                price: Decimal::from(1),
+                stock: BigInt::from(1).into(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            super::index(bootstrap.product_collection())
+                .await
+                .unwrap()
+                .0
+                .products
+                .len(),
+            1
+        )
+    }
 }

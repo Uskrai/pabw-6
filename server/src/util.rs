@@ -105,7 +105,7 @@ mod object_id_string {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct FormattedDateTime(#[serde(with = "time::serde::rfc3339")] OffsetDateTime);
 
 impl From<bson::DateTime> for FormattedDateTime {
