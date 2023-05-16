@@ -122,7 +122,16 @@ impl<S> FromRequestParts<S> for RefreshToken {
     }
 }
 
-pub struct RefreshClaim(RefreshTokenClaims, String);
+pub struct RefreshClaim(pub RefreshTokenClaims, pub String);
+
+impl RefreshClaim {
+    pub fn from_token(jwt_state: &JwtState, refresh_token: String) -> Result<Self, Error> {
+        let token = decode_refresh_token(&jwt_state, &refresh_token)
+            .map_err(|_| Error::Unauthorized(UnauthorizedType::InvalidRefreshToken))?;
+
+        Ok(Self(token.claims, refresh_token))
+    }
+}
 
 #[axum::async_trait]
 impl<S> FromRequestParts<S> for RefreshClaim
@@ -137,10 +146,7 @@ where
 
         let jwt = JwtState::from_ref(state);
 
-        let token = decode_refresh_token(&jwt, &refresh_token)
-            .map_err(|_| Error::Unauthorized(UnauthorizedType::InvalidRefreshToken))?;
-
-        Ok(Self(token.claims, refresh_token))
+        Ok(Self::from_token(&jwt, refresh_token)?)
     }
 }
 
@@ -215,11 +221,12 @@ impl From<UserModel> for RegisterResponse {
     }
 }
 
-pub async fn register(
-    State(users): State<UserCollection>,
-    State(argon): State<Argon2<'_>>,
-    Json(request): Json<RegisterRequest>,
-) -> Result<Json<RegisterResponse>, Error> {
+pub async fn create_user(
+    users: UserCollection,
+    argon: Argon2<'_>,
+    request: RegisterRequest,
+    user_role: UserRole,
+) -> Result<UserModel, Error> {
     request.validate()?;
     let count = users
         .count_documents(
@@ -238,14 +245,24 @@ pub async fn register(
         id: ObjectId::new(),
         email: request.email,
         password: hash_password(&argon, &request.password)?,
-        role: UserRole::Customer,
+        role: user_role,
         balance: Decimal::from(0),
         created_at: OffsetDateTime::now_utc().into(),
         updated_at: OffsetDateTime::now_utc().into(),
     };
     users.insert_one(&model, None).await?;
 
-    Ok(Json(model.into()))
+    Ok(model)
+}
+
+pub async fn register(
+    State(users): State<UserCollection>,
+    State(argon): State<Argon2<'_>>,
+    Json(request): Json<RegisterRequest>,
+) -> Result<Json<RegisterResponse>, Error> {
+    create_user(users, argon, request, UserRole::Customer)
+        .await
+        .map(|it| Json(it.into()))
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -9,27 +9,28 @@ use crate::api::v1::{
 
 #[derive(FromRef, Clone)]
 pub struct AppState {
-    argon: argon2::Argon2<'static>,
-    jwt_state: JwtState,
+    pub argon: argon2::Argon2<'static>,
+    pub jwt_state: JwtState,
 
-    mongo_client: mongodb::Client,
-    token_collection: RefreshTokenCollection,
-    user_collection: UserCollection,
-    product_collection: ProductCollection,
-    transaction_collection: TransactionCollection,
+    pub mongo_client: mongodb::Client,
+    pub token_collection: RefreshTokenCollection,
+    pub user_collection: UserCollection,
+    pub product_collection: ProductCollection,
+    pub transaction_collection: TransactionCollection,
 }
 
 impl AppState {
-    pub async fn new_from_env() -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new(
+        mongo_url: &str,
+        database_name: &str,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let argon = argon2::Argon2::default();
         let jwt_state = JwtState::new_from_env();
 
-        let mongo_url = std::env::var("MONGODB_URI")
-            .expect("Cannot retreive JWT_SECRET_KEY from environment variable.");
         let mongo_client_opt = mongodb::options::ClientOptions::parse(mongo_url).await?;
         let mongo_client = mongodb::Client::with_options(mongo_client_opt)?;
 
-        let db = mongo_client.database("ecommerce");
+        let db = mongo_client.database(database_name);
         Ok(Self {
             argon,
             jwt_state,
@@ -40,5 +41,12 @@ impl AppState {
             product_collection: ProductCollection(db.collection("products").into()),
             transaction_collection: TransactionCollection(db.collection("transactions").into()),
         })
+    }
+
+    pub async fn new_from_env() -> Result<Self, Box<dyn std::error::Error>> {
+        let mongodb_url = &std::env::var("MONGODB_URI")
+            .expect("Cannot retreive JWT_SECRET_KEY from environment variable.");
+
+        Self::new(mongodb_url, "ecommerce").await
     }
 }
