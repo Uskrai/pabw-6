@@ -75,7 +75,31 @@ async fn main() {
                     .route("/:id", routing::get(ecommerce::api::v1::transaction::show))
                     .route(
                         "/:id/confirm",
-                        routing::post(ecommerce::api::v1::transaction::confirm),
+                        routing::post(ecommerce::api::v1::transaction::confirm_processing),
+                    ),
+            )
+            .nest(
+                "/delivery",
+                Router::new()
+                    .route(
+                        "/",
+                        routing::get(ecommerce::api::v1::transaction::index_delivery),
+                    )
+                    .nest(
+                        "/:id",
+                        Router::new()
+                            .route(
+                                "/",
+                                routing::get(ecommerce::api::v1::transaction::show_delivery),
+                            )
+                            .route(
+                                "/pickup",
+                                routing::post(ecommerce::api::v1::transaction::pickup),
+                            )
+                            .route(
+                                "/change",
+                                routing::post(ecommerce::api::v1::transaction::change_delivery),
+                            ),
                     ),
             ),
     );

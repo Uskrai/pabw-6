@@ -421,3 +421,248 @@ pub async fn confirm(
 
     Ok(Json(transaction.into()))
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct DeliveryResponse {
+    pub id: ObjectIdString,
+    pub user_id: ObjectIdString,
+    pub merchant_id: ObjectIdString,
+    pub courier_id: Option<ObjectIdString>,
+    pub status: Vec<TransactionStatusModel>,
+    // pub products: Vec<ProductTransactionModel>,
+    pub created_at: FormattedDateTime,
+    pub updated_at: FormattedDateTime,
+}
+impl From<Transaction> for DeliveryResponse {
+    fn from(value: Transaction) -> Self {
+        Self {
+            id: value.id.into(),
+            user_id: value.user_id.into(),
+            merchant_id: value.merchant_id.into(),
+            courier_id: value.courier_id.map(Into::into),
+            status: value.status.into_iter().map(|it| it.into()).collect(),
+
+            created_at: value.created_at.into(),
+            updated_at: value.updated_at.into(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct DeliveryIndexResponse {
+    deliveries: Vec<DeliveryResponse>,
+}
+
+pub async fn index_delivery(
+    State(transactions): State<TransactionCollection>,
+    user: UserAccess,
+) -> Result<Json<DeliveryIndexResponse>, Error> {
+    match user.role {
+        super::auth::UserRole::Customer => return Err(Error::Forbidden),
+        super::auth::UserRole::Courier | super::auth::UserRole::Admin => {}
+    }
+    let mut cursor = transactions
+        .find_exists(
+            bson::doc! {
+                "$expr": {
+                    "$eq": [
+                        bson::to_bson(&TransactionStatusType::WaitingForCourier)?,
+                        {
+                            "$getField": {
+                                "input": { "$last": "$status" },
+                                "field": "type"
+                            },
+                        }
+                    ]
+                },
+                // "status.type":
+            },
+            None,
+        )
+        .await?;
+
+    let mut result = vec![];
+
+    while cursor.advance().await? {
+        let val = cursor.deserialize_current()?;
+        result.push(val.into());
+    }
+
+    let mut cursor = transactions
+        .find_exists(
+            bson::doc! {
+                "courier_id": user.id
+            },
+            None,
+        )
+        .await?;
+
+    while cursor.advance().await? {
+        result.push(cursor.deserialize_current()?.into());
+    }
+
+    Ok(Json(DeliveryIndexResponse { deliveries: result }))
+}
+
+pub async fn show_delivery(
+    State(transaction): State<TransactionCollection>,
+    user: UserAccess,
+    PathObjectId(path): PathObjectId,
+) -> Result<Json<DeliveryResponse>, Error> {
+    match user.role {
+        super::auth::UserRole::Customer => return Err(Error::Forbidden),
+        super::auth::UserRole::Courier | super::auth::UserRole::Admin => {}
+    }
+
+    let transaction = transaction
+        .find_exists_one_by_id(path)
+        .await?
+        .filter(|it| {
+            it.status
+                .last()
+                .filter(|it| matches!(it.r#type, TransactionStatusType::WaitingForCourier))
+                .is_some()
+                || it.courier_id == Some(user.id)
+        })
+        .ok_or(Error::Forbidden)?;
+
+    Ok(Json(transaction.into()))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ChangeDeliveryRequest {
+    r#type: TransactionStatusType,
+}
+
+pub async fn change_delivery(
+    State(transactions): State<TransactionCollection>,
+    user: UserAccess,
+    PathObjectId(path): PathObjectId,
+    Json(request): Json<ChangeDeliveryRequest>,
+) -> Result<(), Error> {
+    match user.role {
+        super::auth::UserRole::Customer => return Err(Error::Forbidden),
+        super::auth::UserRole::Courier | super::auth::UserRole::Admin => {}
+    }
+
+    let mut item = transactions
+        .find_exists_one_by_id(path)
+        .await?
+        .filter(|it| it.courier_id == Some(user.id))
+        .filter(|it| {
+            it.status
+                .last()
+                .filter(|it| match it.r#type {
+                    TransactionStatusType::WaitingForCourier
+                    | TransactionStatusType::ProcessingInMerchant
+                    | TransactionStatusType::ArrivedInDestination
+                    | TransactionStatusType::ArrivedInDestinationConfirmed
+                    | TransactionStatusType::WaitingForMerchantConfirmation
+                    | TransactionStatusType::ArrivedInMerchant => false,
+                    TransactionStatusType::PickedUpByCourier => match request.r#type {
+                        TransactionStatusType::ArrivedInDestination
+                        | TransactionStatusType::SendBackToMerchant => true,
+                        _ => false,
+                    },
+                    TransactionStatusType::SendBackToMerchant => match request.r#type {
+                        TransactionStatusType::ArrivedInMerchant => true,
+                        _ => false,
+                    },
+                })
+                .is_some()
+        })
+        .ok_or(Error::Forbidden)?;
+
+    item.status
+        .push(TransactionStatus::new(request.r#type.clone()));
+
+    let mut courier_id = Some(user.id);
+
+    match &request.r#type {
+        TransactionStatusType::ArrivedInMerchant => {
+            item.status.push(TransactionStatus::new(
+                TransactionStatusType::ProcessingInMerchant,
+            ));
+
+            courier_id = None;
+        }
+        TransactionStatusType::ArrivedInDestination => {
+            courier_id = None;
+        }
+        _ => {}
+    }
+
+    let update = bson::doc! {
+        "$set": {
+            "courier_id": courier_id,
+            "status": bson::to_bson(&item.status)?,
+        }
+    };
+
+    transactions.update_exists_one_by_id(path, update).await?;
+
+    Ok(())
+}
+
+pub async fn pickup(
+    State(transaction): State<TransactionCollection>,
+    user: UserAccess,
+    PathObjectId(path): PathObjectId,
+) -> Result<(), Error> {
+    match user.role {
+        super::auth::UserRole::Customer => return Err(Error::Forbidden),
+        super::auth::UserRole::Courier | super::auth::UserRole::Admin => {}
+    }
+
+    let mut item = transaction
+        .find_exists_one_by_id(path)
+        .await?
+        .filter(|it| {
+            it.status
+                .last()
+                .filter(|it| matches!(it.r#type, TransactionStatusType::WaitingForCourier))
+                .is_some()
+        })
+        .filter(|it| it.courier_id.is_none())
+        .ok_or(Error::Forbidden)?;
+
+    item.status.push(TransactionStatus::new(
+        TransactionStatusType::PickedUpByCourier,
+    ));
+
+    transaction
+        .update_exists_one_by_id(
+            path,
+            bson::doc! {
+                "$set": {
+                    "courier_id": user.id,
+                    "status": bson::to_bson(&item.status)?,
+                }
+            },
+        )
+        .await?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    pub async fn test() {
+        let it = super::super::tests::bootstrap().await;
+
+        // let session = super::auth::login(
+        //     state(app.user_collection.clone()),
+        //     state(app.token_collection.clone()),
+        //     state(app.jwt_state.clone()),
+        //     state(app.argon.clone()),
+        //     json(super::auth::loginrequest {
+        //         email: email.to_string(),
+        //         password: ,
+        //     })
+        // );
+        // let user = crate::entity::user::model::from_session(app, session.clone())
+        //     .await
+        //     .unwrap();
+    }
+}
