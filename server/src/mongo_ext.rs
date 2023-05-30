@@ -55,6 +55,24 @@ where
         self.find(filter, options).await
     }
 
+    pub async fn find_exists_one(
+        &self,
+        filter: impl Into<Option<bson::Document>>,
+        options: impl Into<Option<mongodb::options::FindOneOptions>>,
+    ) -> Result<Option<T>, mongodb::error::Error> {
+        let doc = filter.into();
+
+        let mut filter = bson::doc! {
+            "deleted_at": null,
+        };
+
+        if let Some(it) = doc {
+            filter.extend(it);
+        }
+
+        self.find_one(filter, options).await
+    }
+
     /// Finds a single document in the collection with matchi id and null deleted_at.
     pub async fn find_exists_one_by_id(&self, id: ObjectId) -> Result<Option<T>, Error> {
         self.find_one(

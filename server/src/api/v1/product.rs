@@ -128,6 +128,12 @@ pub struct CreateRequest {
     pub stock: BigIntString,
 }
 
+#[tracing::instrument(
+    skip_all,
+    fields(
+        user = ?user,
+    )
+)]
 pub async fn create(
     State(products): State<ProductCollection>,
     user: UserAccess,
@@ -156,6 +162,7 @@ pub async fn create(
         deleted_at: None,
     };
 
+    tracing::debug!("creating product {:#?}", model);
     products.insert_one(&model, None).await?;
 
     Ok(Json(model.into()))
@@ -170,6 +177,12 @@ pub struct UpdateRequest {
     pub price: Decimal,
 }
 
+#[tracing::instrument(
+    skip_all,
+    fields(
+        user = ?user,
+    )
+)]
 pub async fn update(
     user: UserAccess,
     State(products): State<ProductCollection>,
@@ -214,6 +227,7 @@ pub async fn update(
         deleted_at: product.deleted_at,
     };
 
+    tracing::debug!("updating product {:#?}", product);
     products
         .update_one(
             bson::doc! {
@@ -229,6 +243,13 @@ pub async fn update(
     Ok(Json(product.into()))
 }
 
+#[tracing::instrument(
+    skip_all,
+    fields(
+        user = ?user,
+        id = product_id,
+    )
+)]
 pub async fn delete(
     State(products): State<ProductCollection>,
     user: UserAccess,
@@ -255,6 +276,7 @@ pub async fn delete(
         super::auth::UserRole::Courier | super::auth::UserRole::Admin => {}
     };
 
+    tracing::debug!("deleting product");
     products
         .delete_one(bson::doc! {"_id": product_id}, None)
         .await?;
@@ -397,6 +419,7 @@ mod tests {
             .await
             .expect_err("product should be deleted");
     }
+
     #[tokio::test]
     pub async fn test_customer_can_view_all() {
         let bootstrap = bootstrap()

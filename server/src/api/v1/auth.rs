@@ -63,6 +63,7 @@ pub enum UserRole {
     Admin,
 }
 
+#[derive(Debug)]
 pub struct UserAccess {
     pub id: ObjectId,
     pub role: UserRole,

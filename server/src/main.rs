@@ -7,11 +7,22 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().unwrap();
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "angkot=debug,tower_http=debug".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
+    // tracing_subscriber::registry()
+    //     .with(tracing_subscriber::EnvFilter::new(
+    //         std::env::var("RUST_LOG").unwrap_or_else(|_| "angkot=debug,tower_http=debug".into()),
+    //     ))
+    //     .with(tracing_subscriber::fmt::layer())
+    //     .init();
+    tracing_subscriber::fmt()
+        .pretty()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::from_default_env()
+                .add_directive("polling=error".parse().unwrap())
+                .add_directive("async_io=error".parse().unwrap())
+                .add_directive("tower_http=debug".parse().unwrap())
+                .add_directive("hyper=info".parse().unwrap()),
+        )
+        .finish()
         .init();
 
     let app_state = AppState::new_from_env().await.unwrap();
@@ -77,6 +88,14 @@ async fn main() {
                         "/:id/confirm",
                         routing::post(ecommerce::api::v1::transaction::confirm_processing),
                     ),
+            )
+            .nest(
+                "/cart",
+                Router::new()
+                    .route("/", routing::get(ecommerce::api::v1::cart::index))
+                    .route("/:id", routing::get(ecommerce::api::v1::cart::show))
+                    .route("/", routing::post(ecommerce::api::v1::cart::create))
+                    .route("/:id", routing::delete(ecommerce::api::v1::cart::delete)),
             )
             .nest(
                 "/delivery",

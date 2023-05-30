@@ -43,6 +43,9 @@ pub enum Error {
     #[error("{1}")]
     CustomStatus(StatusCode, anyhow::Error),
 
+    #[error("{1}")]
+    CustomStr(StatusCode, &'static str),
+
     #[error("products must be from the same merchant")]
     MismatchMerchant,
 
@@ -99,6 +102,7 @@ impl From<Error> for ErrorJson {
             | Error::MustUniqueError(..)
             | Error::Unauthorized(..)
             | Error::Forbidden
+            | Error::CustomStr(..)
             | Error::CustomStatus(..) => None,
         };
 
@@ -126,7 +130,7 @@ impl IntoResponse for Error {
             | Self::DatabaseError(..)
             | Self::JWTError(..)
             | Self::BSONSerError(..) => StatusCode::INTERNAL_SERVER_ERROR,
-            Self::CustomStatus(code, ..) => code,
+            Self::CustomStatus(code, ..) | Self::CustomStr(code, ..) => code,
         };
 
         let error = ErrorJson::from(self);
@@ -175,7 +179,8 @@ impl Error {
             BSONSerError(..),
             MustUniqueError(..),
             Unauthorized(..),
-            CustomStatus(..)
+            CustomStatus(..),
+            CustomStr(..)
         }
         .to_string()
     }

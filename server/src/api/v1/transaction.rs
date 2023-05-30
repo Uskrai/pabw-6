@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use axum::{extract::State, Json};
+use axum::{extract::State, Json, http::StatusCode};
 use bson::oid::ObjectId;
 use num_bigint::BigInt;
 use rust_decimal::Decimal;
@@ -25,6 +25,7 @@ pub struct Transaction {
     pub id: ObjectId,
     pub user_id: ObjectId,
     pub merchant_id: ObjectId,
+    pub courier_id: Option<ObjectId>,
     pub price: Decimal,
     pub status: Vec<TransactionStatus>,
     pub products: Vec<ProductTransaction>,
@@ -39,12 +40,17 @@ pub struct ProductTransaction {
     pub quantity: BigInt,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type", content = "content")]
 pub enum TransactionStatusType {
-    Processing,
+    WaitingForMerchantConfirmation,
+    ProcessingInMerchant,
     WaitingForCourier,
-    Send,
+    PickedUpByCourier,
+    SendBackToMerchant,
+    ArrivedInMerchant,
+    ArrivedInDestination,
+    ArrivedInDestinationConfirmed,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -185,7 +191,7 @@ pub struct InsertOrderRequet {
 
 #[derive(Serialize, Deserialize)]
 pub struct ProductOrderRequest {
-    pub id: ObjectIdString,
+    pub product_id: ObjectIdString,
     pub quantity: BigIntString,
 }
 
@@ -202,7 +208,7 @@ pub async fn insert_order(
     let ids = request
         .products
         .iter()
-        .map(|it| it.id.clone().into())
+        .map(|it| it.product_id.clone().into())
         .collect::<Vec<ObjectId>>();
 
     let mut ordered = products_collection
@@ -243,16 +249,16 @@ pub async fn insert_order(
 
     // forbidden to order product you own
     if merchant_id == user.id {
-        return Err(Error::Forbidden);
+        return Err(Error::CustomStr(StatusCode::FORBIDDEN, "You cannot buy product that you own"));
     }
 
     let mut products = vec![];
     let mut price = Decimal::from(0);
 
     for order in request.products.iter() {
-        if let Some(product) = ordered_map.get(&order.id) {
+        if let Some(product) = ordered_map.get(&order.product_id) {
             products.push(ProductTransaction {
-                id: *order.id,
+                id: *order.product_id,
                 quantity: order.quantity.clone().into(),
             });
 
@@ -286,11 +292,10 @@ pub async fn insert_order(
     let quantity = products
         .iter()
         .map(|it| it.quantity.clone())
-        .sum::<BigInt>();
+        .find(|it| it <= &BigInt::from(0));
 
-    if quantity == BigInt::from(0) {
-        // TODO
-        return Err(Error::Forbidden);
+    if quantity.is_some() {
+        return Err(Error::CustomStr(StatusCode::FORBIDDEN, "Quantity must be more than 0"));
     }
 
     let transaction = Transaction {
@@ -298,8 +303,11 @@ pub async fn insert_order(
         user_id: user.id,
         price,
         merchant_id,
+        courier_id: None,
         products,
-        status: vec![TransactionStatus::new(TransactionStatusType::Processing)],
+        status: vec![TransactionStatus::new(
+            TransactionStatusType::ProcessingInMerchant,
+        )],
 
         created_at: time::OffsetDateTime::now_utc().into(),
         updated_at: time::OffsetDateTime::now_utc().into(),
@@ -327,7 +335,7 @@ pub async fn insert_order(
 
         if &stock < &BigInt::from(0) {
             // TODO
-            return Err(Error::Forbidden);
+            return Err(Error::CustomStr(StatusCode::FORBIDDEN, "quantity must be less than stock"));
         }
         products_collection
             .update_exists_one_by_id_with_session(
@@ -387,7 +395,7 @@ pub async fn show(
     Ok(Json(transaction.into()))
 }
 
-pub async fn confirm(
+pub async fn confirm_processing(
     State(transactions): State<TransactionCollection>,
     user: UserAccess,
     PathObjectId(path): PathObjectId,
@@ -398,9 +406,10 @@ pub async fn confirm(
         .filter(|it| it.merchant_id == user.id)
         .filter(|it| {
             it.status
-                .iter()
-                .find(|it| matches!(it.r#type, TransactionStatusType::WaitingForCourier))
-                .is_none()
+                .last()
+                // only allow if the last transaction status is processing
+                .filter(|it| matches!(it.r#type, TransactionStatusType::ProcessingInMerchant))
+                .is_some()
         })
         .ok_or(Error::Forbidden)?;
 

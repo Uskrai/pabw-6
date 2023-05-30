@@ -1,5 +1,6 @@
 pub mod account;
 pub mod auth;
+pub mod cart;
 pub mod product;
 pub mod token;
 pub mod transaction;
@@ -19,7 +20,7 @@ mod tests {
 
     use super::{
         auth::{UserAccess, UserRole},
-        product::ProductCollection,
+        product::ProductCollection, cart::CartCollection,
     };
 
     #[allow(dead_code)]
@@ -116,6 +117,29 @@ mod tests {
         pub fn product_collection(&self) -> State<ProductCollection> {
             State(self.app_state.product_collection.clone())
         }
+
+        pub fn cart_collection(&self) -> State<CartCollection> {
+            State(self.app_state.cart_collection.clone())
+        }
+
+        pub async fn create_product(&self, price: i64, stock: i64) -> super::product::Product {
+            use super::product::*;
+
+            let Json(product) = super::product::create(
+                self.product_collection(),
+                self.user_access(),
+                Json(CreateRequest {
+                    name: "test".to_string(),
+                    description: "".to_string(),
+                    price: Decimal::from(price),
+                    stock: BigInt::from(stock).into(),
+                }),
+            )
+            .await
+            .unwrap();
+
+            product
+        }
     }
 
     pub async fn create_user(
@@ -173,5 +197,9 @@ mod tests {
 
             track_cleanup,
         }
+    }
+
+    pub async fn wait_bootstrap() {
+        //
     }
 }
