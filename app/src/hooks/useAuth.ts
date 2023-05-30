@@ -38,7 +38,7 @@ export function useProvidedAuth(): Auth {
     },
     {
       revalidateOnMount: true,
-      revalidateOnFocus: false,
+      revalidateOnFocus: true,
       revalidateIfStale: false,
       revalidateOnReconnect: false,
     }
@@ -62,9 +62,11 @@ export function useProvidedAuth(): Auth {
     }
 
     if (error) {
+      console.log(error);
       logout();
     }
 
+    // console.log(data, error);
     setIsLoading(isSwrLoading);
   }, [data, error, isSwrLoading]);
 

@@ -1,3 +1,4 @@
+import { handleError } from "@/utils/error-handler";
 import axios from "axios";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
@@ -15,29 +16,25 @@ export default function Register() {
   const navigate = useNavigate();
 
   const onClick = async (e: FormData) => {
-    try {
-      console.log(e.confirmPassword);
-      let res = await axios.post("/api/v1/auth/register", {
-        email: e.email,
-        password: e.password,
-        confirm_password: e.confirmPassword,
-      });
+    console.log(e.confirmPassword);
+    let res = await axios.post("/api/v1/auth/register", {
+      email: e.email,
+      password: e.password,
+      confirm_password: e.confirmPassword,
+    });
 
-      res = await axios.post("/api/v1/auth/login", {
-        email: e.email,
-        password: e.password,
-      });
-      auth.login(res.data.access_token);
+    res = await axios.post("/api/v1/auth/login", {
+      email: e.email,
+      password: e.password,
+    });
+    auth.login(res.data.access_token);
 
-      navigate("/");
-    } catch (e) {
-      //
-    }
+    navigate("/");
   };
 
   return (
     <div className="Register">
-      <form className="form" onSubmit={handleSubmit(onClick)}>
+      <form className="form" onSubmit={handleSubmit(handleError(onClick))}>
         <label htmlFor="email">Email:</label>
         <input type="text" placeholder="Email" {...register("email")} />
         <label htmlFor="password">Password:</label>

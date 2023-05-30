@@ -4,12 +4,15 @@ import {
   createBrowserRouter,
   Navigate,
   RouterProvider,
+  useNavigate,
 } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
 import "./App.css";
 import { AuthContext } from "./context/User";
 import { useAuth, useProvidedAuth } from "./hooks/useAuth";
 import { useUser } from "./hooks/useUser";
 import { UserRole } from "./models/User";
+import "react-toastify/dist/ReactToastify.css";
 
 const Landing = React.lazy(() => import("./Landing"));
 const Product = React.lazy(() => import("./Product"));
@@ -27,6 +30,9 @@ const ProductIndex = React.lazy(() => import("./pages/product/Index"));
 const ProductShow = React.lazy(() => import("./pages/product/Show"));
 const ProductEdit = React.lazy(() => import("./pages/product/Edit"));
 const ProductCreate = React.lazy(() => import("./pages/product/Create"));
+const CartIndex = React.lazy(() => import("./pages/cart/Index"));
+const DeliveryIndex = React.lazy(() => import("./pages/delivery/Index"));
+const DeliveryShow = React.lazy(() => import("./pages/delivery/Show"));
 
 interface ProtectedRouteProps extends React.PropsWithChildren {
   login: boolean;
@@ -39,26 +45,38 @@ const ProtectedRoute = ({
 }: ProtectedRouteProps) => {
   const auth = useAuth();
   const user = useUser();
+  const navigator = useNavigate();
   login = login === true;
 
   const roles = typeof role === "string" ? [role] : role;
 
-  if (auth.isLoading) {
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  // console.log(auth.isLoading, user.isLoading);
+
+  React.useEffect(() => {
+    if (auth.isLoading) {
+      return;
+    }
+    if (auth.isLogin !== login) {
+      return navigator("/");
+    }
+
+    if (roles != undefined) {
+      if (user.isLoading) {
+        return;
+      }
+
+      if (!roles.includes(user.user?.role ?? ("" as UserRole))) {
+        return navigator("/");
+      }
+    }
+
+    setIsLoading(false);
+  }, [auth.isLoading, user?.isLoading, login, roles]);
+
+  if (isLoading) {
     return <CircularProgress />;
-  }
-
-  if (auth.isLogin !== login) {
-    return <Navigate to="/" />;
-  }
-
-  if (roles != undefined) {
-    if (user.isLoading) {
-      return <CircularProgress />;
-    }
-
-    if (roles.includes(user.user?.role ?? ("" as UserRole))) {
-      return <Navigate to="/" />;
-    }
   }
 
   return <>{children}</>;
@@ -165,8 +183,30 @@ const router = createBrowserRouter([
       },
     ],
   },
+  {
+    path: "/user/cart",
+    element: (
+      <ProtectedRoute login={true}>
+        <CartIndex />
+      </ProtectedRoute>
+    ),
+  },
   account("Customer"),
   account("Courier"),
+  {
+    path: "/courier/delivery",
+    element: (
+      <ProtectedRoute login={true} role="Courier">
+        <DeliveryIndex />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        path: "/courier/delivery/:id",
+        element: <DeliveryShow />,
+      },
+    ],
+  },
 ]);
 
 const App = () => {
@@ -176,6 +216,7 @@ const App = () => {
     <Suspense fallback={<CircularProgress />}>
       <AuthContext.Provider value={auth}>
         <RouterProvider router={router} />
+        <ToastContainer />
       </AuthContext.Provider>
     </Suspense>
   );

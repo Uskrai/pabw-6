@@ -16,13 +16,10 @@ import * as React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { useUser } from "./hooks/useUser";
+import { currencyFormatter } from "./utils/formatter";
 
-const formatter = new Intl.NumberFormat("id", {
-  style: "currency",
-  currency: "IDR",
-});
 
-function ResponsiveAppBar() {
+export default function ResponsiveAppBar() {
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(
     null
   );
@@ -61,8 +58,11 @@ function ResponsiveAppBar() {
     Transaction: ["Customer", "Admin"].includes(user?.user?.role ?? "")
       ? "/user/transaction"
       : null,
+    Cart: ["Customer"].includes(user?.user?.role ?? "") ? "/user/cart" : null,
+    Delivery: user?.user?.role == "Courier" ? "/courier/delivery" : null,
     // Accounts: user.user?.role == "Admin" ? "/admin/account" : null,
   }).filter(([_, it]) => it != null);
+
   const settings = user.user
     ? {
         Logout: async () => {
@@ -174,7 +174,7 @@ function ResponsiveAppBar() {
             ) : settings ? (
               <>
                 <Typography component="a" sx={{ m: 4 }}>
-                  {formatter.format(user?.user?.balance || ("" as any))}
+                  {currencyFormatter.format(user?.user?.balance || ("" as any))}
                 </Typography>
 
                 <Tooltip title="Open settings">
@@ -216,4 +216,3 @@ function ResponsiveAppBar() {
     </AppBar>
   );
 }
-export default ResponsiveAppBar;

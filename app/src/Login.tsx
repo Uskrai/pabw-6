@@ -2,6 +2,7 @@ import axios from "axios";
 import { useForm } from "react-hook-form";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
+import { handleError } from "./utils/error-handler";
 
 interface FormData {
   email: string;
@@ -14,7 +15,6 @@ export default function Login() {
   const navigate = useNavigate();
 
   const onClick = async (e: FormData) => {
-    try {
       const res = await axios.post("/api/v1/auth/login", {
         email: e.email,
         password: e.password,
@@ -23,14 +23,11 @@ export default function Login() {
       auth.login(res.data.access_token);
 
       navigate("/");
-    } catch (e) {
-      //
-    }
   };
 
   return (
     <div className="Login">
-      <form className="login-form" onSubmit={handleSubmit(onClick)}>
+      <form className="login-form" onSubmit={handleSubmit(handleError(onClick))}>
         <label htmlFor="email">Email:</label>
         <input type="text" placeholder="Email" {...register("email")} />
         <label htmlFor="password">Password:</label>

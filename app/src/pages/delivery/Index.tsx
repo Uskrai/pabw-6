@@ -8,12 +8,18 @@ import Typography from "@mui/material/Typography";
 import { Outlet, useNavigate } from "react-router-dom";
 import AppBar from "../../AppBar";
 import { useAuthSWR } from "../../hooks/useSWR";
-import { GetOrder, statusToString, Transaction } from "../../models/Transaction";
+import {
+  Delivery,
+  GetDelivery,
+  GetTransaction,
+  statusToString,
+  Transaction,
+} from "../../models/Transaction";
 import { User } from "../../models/User";
 import { Product } from "../../models/Product";
 
-export default function ShowProduct() {
-  const { data, isLoading } = useAuthSWR<GetOrder>("/api/v1/order");
+export default function Index() {
+  const { data, isLoading } = useAuthSWR<GetDelivery>("/api/v1/delivery");
 
   if (isLoading) {
     return <CircularProgress />;
@@ -25,7 +31,7 @@ export default function ShowProduct() {
 
       <Grid container>
         <Grid item xs>
-          {data?.orders.map((it) => (
+          {data?.deliveries.map((it) => (
             <div key={it.id}>
               <OrderCard order={it} />
             </div>
@@ -40,26 +46,16 @@ export default function ShowProduct() {
   );
 }
 
-function OrderCard({ order }: { order: Transaction }) {
+function OrderCard({ order }: { order: Delivery }) {
   const navigate = useNavigate();
   const { data: merchant } = useAuthSWR<User>(
-    `/api/v1/account/${order.merchant_id}`
-  );
-
-  const { data: product } = useAuthSWR<Product>(
-    `/api/v1/product/${order.products[0].id}`
+    `/api/v1/account/${order.user_id}`
   );
 
   return (
     <Card>
-      <CardActionArea onClick={() => navigate(`/user/order/${order.id}`)}>
+      <CardActionArea onClick={() => navigate(`/courier/delivery/${order.id}`)}>
         <CardContent>
-          <Typography gutterBottom variant="h5" component="div">
-            {product ? product.name : <CircularProgress />}
-            {order.products.length > 1 && (
-              <div>+{order.products.length - 1} Produk lainnya</div>
-            )}
-          </Typography>
           <Typography variant="body2" color="text.secondary">
             {merchant == null ? <CircularProgress /> : <>{merchant.email}</>}
           </Typography>

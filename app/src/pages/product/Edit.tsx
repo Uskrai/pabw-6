@@ -42,7 +42,6 @@ export default function EditProduct() {
     <Form
       form={form}
       onClick={async (e) => {
-        try {
           const res = await axios.put(`/api/v1/product/${product?.id}`, e, {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -52,7 +51,6 @@ export default function EditProduct() {
           mutate("/api/v1/product");
           mutateNow();
           navigate(`/user/product/${product.id}`);
-        } catch (e) {}
       }}
     />
   );

@@ -8,7 +8,7 @@ import { useParams } from "react-router-dom";
 import useSWR from "swr";
 import { useAuthSWR } from "../../hooks/useSWR";
 import { Product } from "../../models/Product";
-import { Transaction } from "../../models/Transaction";
+import { statusToString, Transaction } from "../../models/Transaction";
 import { User } from "../../models/User";
 
 export default function ShowProduct() {
@@ -40,7 +40,7 @@ export default function ShowProduct() {
               Harga: Rp. {order.price}
             </Typography>
             <Typography variant="body2" fontSize={12}>
-              Status: {order.status.type}
+              Status: {statusToString(order.status.at(-1))}
             </Typography>
 
             <Typography variant="h5">Barang:</Typography>

@@ -1,3 +1,4 @@
+import { handleError } from "@/utils/error-handler";
 import Button from "@mui/material/Button";
 import FormControl from "@mui/material/FormControl";
 import MenuItem from "@mui/material/MenuItem";
@@ -7,7 +8,7 @@ import { UseFormReturn } from "react-hook-form";
 import { UserForm } from "../../models/User";
 
 interface Props {
-  onClick: (e: UserForm) => void;
+  onClick: (e: UserForm) => Promise<any>;
   form: UseFormReturn<UserForm>;
   withPassword?: boolean;
 }
@@ -20,16 +21,21 @@ export default function Form({
   return (
     <FormControl>
       <TextField
-        {...register("email")}
+        {...register("email", { required: "Email harus di isi" })}
         label={"Email"}
         defaultValue={formState.defaultValues?.email}
         sx={{ m: 2 }}
         fullWidth
+        error={formState.errors.email != null}
+        helperText={formState.errors.email?.message}
       />
       <Select
         {...register("role")}
         sx={{ m: 2 }}
         defaultValue={formState.defaultValues?.role}
+
+        // error={formState.errors.email != null}
+        // helperText={formState.errors.email?.message}
       >
         <MenuItem value="Customer">Customer</MenuItem>
         <MenuItem value="Courier">Courier</MenuItem>
@@ -38,35 +44,72 @@ export default function Form({
       {withPassword && (
         <>
           <TextField
-            {...register("password")}
+            {...register("password", {
+              minLength: {
+                value: 8,
+                message: "Password harus lebih atau sama dengan 8",
+              },
+            })}
             type="password"
             label={"Password"}
             defaultValue={formState.defaultValues?.password}
             sx={{ m: 2 }}
             fullWidth
+            error={formState.errors.password != null}
+            helperText={formState.errors.password?.message}
           />
 
           <TextField
-            {...register("confirm_password")}
+            {...register("confirm_password", {
+              validate: {
+                equalToPassword: (it: string, formValues) =>
+                  it == formValues.password || "Harus sama dengan password",
+              },
+            })}
             type="password"
             label={"Confirm Password"}
             defaultValue={formState.defaultValues?.confirm_password}
             sx={{ m: 2 }}
             fullWidth
+            error={formState.errors.confirm_password != null}
+            helperText={formState.errors.confirm_password?.message}
           />
         </>
       )}
 
       <TextField
-        {...register("balance")}
+        {...register("balance", {
+          required: "Balance harus di isi",
+        })}
         type="number"
         label={"Balance"}
         defaultValue={formState.defaultValues?.balance}
         sx={{ m: 2 }}
         fullWidth
+        error={formState.errors.balance != null}
+        helperText={formState.errors.balance?.message}
       />
 
-      <Button disabled={formState.isSubmitting} onClick={handleSubmit(onClick)}>
+      {/* <TextField */}
+      {/*   {...balanceForm.register("balance", { */}
+      {/*     // minLength: { */}
+      {/*     //   value: 8, */}
+      {/*     //   message: "Password harus lebih atau sama dengan 8", */}
+      {/*     // }, */}
+      {/*   })} */}
+      {/*   type="number" */}
+      {/*   label={"Tambah"} */}
+      {/*   defaultValue={balanceForm.formState.defaultValues?.balance} */}
+      {/*   sx={{ m: 2 }} */}
+      {/*   fullWidth */}
+      {/*   error={balanceForm.formState.errors.balance != null} */}
+      {/*   helperText={balanceForm.formState.errors.balance?.message} */}
+      {/* /> */}
+
+      <Button
+        disabled={formState.isSubmitting}
+        onClick={handleSubmit(handleError(onClick))}
+      >
         Submit
       </Button>
     </FormControl>

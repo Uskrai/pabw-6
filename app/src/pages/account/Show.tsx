@@ -1,3 +1,4 @@
+import { currencyFormatter } from "@/utils/formatter";
 import Card from "@mui/material/Card";
 import CardActions from "@mui/material/CardActions";
 import CardContent from "@mui/material/CardContent";
@@ -7,7 +8,7 @@ import axios from "axios";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { mutate } from "swr";
 import { useAuth } from "../../hooks/useAuth";
-import { useAuthSWR } from "../../hooks/useSWR";
+import { useAuthSWR, useMutateAuth } from "../../hooks/useSWR";
 import { User, UserRole } from "../../models/User";
 
 interface Props {
@@ -22,6 +23,8 @@ export default function Show(props: Props) {
   const navigate = useNavigate();
   const { token } = useAuth();
 
+  const mutateAuth = useMutateAuth();
+
   if (isLoading) {
     return <CircularProgress />;
   }
@@ -33,7 +36,7 @@ export default function Show(props: Props) {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    mutate(["/api/v1/account", token]);
+    mutateAuth("/api/v1/account");
     navigate(`/admin/account/${props.role.toLowerCase()}`);
   };
 
@@ -51,7 +54,7 @@ export default function Show(props: Props) {
         </Typography>
 
         <Typography variant="body2" fontSize={12}>
-          Balance: {user.balance}
+          Balance: {currencyFormatter.format(parseInt(user.balance))}
         </Typography>
         {/* <Typography variant="body2">Stok: {product.stock}</Typography> */}
       </CardContent>

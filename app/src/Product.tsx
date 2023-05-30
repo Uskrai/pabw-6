@@ -1,4 +1,5 @@
-import { TextField } from "@mui/material";
+import Button from "@mui/material/Button";
+import TextField from "@mui/material/TextField";
 import Card from "@mui/material/Card";
 import CardActions from "@mui/material/CardActions";
 import CardContent from "@mui/material/CardContent";
@@ -13,6 +14,7 @@ import AppBar from "./AppBar";
 import { useAuth } from "./hooks/useAuth";
 import { useUser } from "./hooks/useUser";
 import { Product } from "./models/Product";
+import { handleError } from "./utils/error-handler";
 
 interface BuyForm {
   quantity: string;
@@ -21,7 +23,7 @@ interface BuyForm {
 export default function ShowProduct() {
   const { product_id } = useParams();
 
-  const { data, isLoading } = useSWR<{ data: Product }>(
+  const { data, isLoading, mutate } = useSWR<{ data: Product }>(
     `/api/v1/product/${product_id}`,
     (url) => axios.get(url)
   );
@@ -29,12 +31,12 @@ export default function ShowProduct() {
 
   const form = useForm<BuyForm>({
     defaultValues: {
-      quantity: "0",
+      quantity: "1",
     },
   });
 
   const { token } = useAuth();
-  const { user } = useUser();
+  const { user, mutate: mutateUser } = useUser();
 
   if (isLoading) {
     return <CircularProgress />;
@@ -42,13 +44,13 @@ export default function ShowProduct() {
 
   const product = data?.data!;
 
-  function onBuy(e: BuyForm) {
-    axios.post(
+  async function onBuy(e: BuyForm) {
+    const result = await axios.post(
       "/api/v1/order",
       {
         products: [
           {
-            id: product_id,
+            product_id: product_id,
             quantity: e.quantity,
           },
         ],
@@ -59,8 +61,31 @@ export default function ShowProduct() {
         },
       }
     );
+
+    navigate(`/user/order/${result.data.id}`);
+
+    mutate();
+    mutateUser();
   }
 
+  async function onAddToCart(e: BuyForm) {
+    await axios.post(
+      "/api/v1/cart",
+      {
+        product_id: product_id,
+        quantity: e.quantity,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    mutate();
+  }
+
+  console.log(form.formState.errors.quantity?.message);
   return (
     <div className="App">
       <AppBar />
@@ -77,28 +102,41 @@ export default function ShowProduct() {
             Harga: Rp. {product.price}
           </Typography>
           <Typography variant="body2">Stok: {product.stock}</Typography>
-
-          {token && (
-            <>
-              <Typography variant="body2" fontSize={18}>
-                Kuantitas:
-              </Typography>
-
-              <TextField
-                {...form.register("quantity")}
-                type="number"
-                variant="outlined"
-                size="small"
-              />
-            </>
-          )}
         </CardContent>
+        {token && product.user_id != user?.id && (
+          <CardActions>
+            <TextField
+              {...form.register("quantity", {
+                required: "Kuantitas harus diisi",
+                max: {
+                  value: product.stock,
+                  message: "Kuantitas tidak boleh lebih dari stok",
+                },
+              })}
+              label="Kuantitas"
+              type="number"
+              variant="outlined"
+              size="small"
+              error={form.formState.errors.quantity != null}
+              helperText={form.formState.errors.quantity?.message}
+            />
+          </CardActions>
+        )}
 
         {token && product.user_id != user?.id && (
           <CardActions>
-            <Link to="" onClick={form.handleSubmit(onBuy)}>
+            <Button
+              onClick={form.handleSubmit(handleError(onAddToCart))}
+              disabled={form.formState.isSubmitting}
+            >
+              Add To Cart
+            </Button>
+            <Button
+              onClick={form.handleSubmit(handleError(onBuy))}
+              disabled={form.formState.isSubmitting}
+            >
               Buy
-            </Link>
+            </Button>
           </CardActions>
         )}
       </Card>

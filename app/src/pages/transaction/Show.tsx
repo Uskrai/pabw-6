@@ -1,3 +1,4 @@
+import { handleError } from "@/utils/error-handler";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
@@ -14,7 +15,7 @@ import { useParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
 import { dateToString } from "../../helper";
 import { useAuth } from "../../hooks/useAuth";
-import { useAuthSWR } from "../../hooks/useSWR";
+import { useAuthSWR, useMutateAuth } from "../../hooks/useSWR";
 import { Product } from "../../models/Product";
 import { statusToString, Transaction } from "../../models/Transaction";
 import { User } from "../../models/User";
@@ -40,12 +41,13 @@ export default function ShowProduct() {
     [order?.status]
   );
 
+  const mutateAuth = useMutateAuth();
+
   if (isLoading && order == null) {
     return <CircularProgress />;
   }
 
   const onConfirm = async (): Promise<void> => {
-    try {
       await axios.post(
         `/api/v1/transaction/${id}/confirm`,
         {},
@@ -57,8 +59,7 @@ export default function ShowProduct() {
       );
 
       mutateNow();
-      mutate(["/api/v1/transaction", token]);
-    } catch {}
+      mutateAuth("/api/v1/transaction");
   };
 
   return (
@@ -92,9 +93,9 @@ export default function ShowProduct() {
 
             <Typography variant="h5">Status:</Typography>
             <Stack>
-              {reversedStatus?.map((it) => {
+              {reversedStatus?.map((it, i) => {
                 return (
-                  <Box key={it.date}>
+                  <Box key={i}>
                     {statusToString(it)} {dateToString(it.date)}
                   </Box>
                 );
@@ -102,12 +103,12 @@ export default function ShowProduct() {
             </Stack>
           </CardContent>
 
-          {order?.status.at(-1)?.type?.type == "Processing" && (
+          {order?.status.at(-1)?.type?.type == "ProcessingInMerchant" && (
             <CardActions>
               <Button
                 size="small"
                 color="primary"
-                onClick={confirmForm.handleSubmit(onConfirm)}
+                onClick={confirmForm.handleSubmit(handleError(onConfirm))}
                 disabled={confirmForm.formState.isSubmitting}
               >
                 Confirm

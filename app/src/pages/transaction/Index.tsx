@@ -16,9 +16,13 @@ import {
 } from "../../models/Transaction";
 import { User } from "../../models/User";
 import { Product } from "../../models/Product";
+import AppDashboard from "@/layouts/AppDashboard";
+import MaterialReactTable, { MRT_ColumnDef } from "material-react-table";
+import TableDashboard from "@/layouts/TableDashboard";
 
 export default function Index() {
   const { data, isLoading } = useAuthSWR<GetTransaction>("/api/v1/transaction");
+
 
   if (isLoading) {
     return <CircularProgress />;
@@ -44,6 +48,72 @@ export default function Index() {
     </div>
   );
 }
+
+// export default function Index() {
+//
+//   const { data, isLoading } = useAuthSWR<GetTransaction>("/api/v1/transaction");
+//
+//   const dataColumns = [
+//     {
+//       accessorKey: "name",
+//       header: "Nama",
+//     },
+//     {
+//       accessorKey: "address",
+//       header: "Alamat",
+//     },
+//     {
+//       accessorKey: "email",
+//       header: "E-Mail",
+//     },
+//   ] as MRT_ColumnDef<Transaction>[];
+//
+//   if (isLoading) {
+//     return <CircularProgress />;
+//   }
+//
+//   return (
+//     <TableDashboard title="Akun" route="/admin/account">
+//       <MaterialReactTable
+//         columns={dataColumns}
+//         data={data?.transactions || []}
+//         enableColumnActions={true}
+//         enableColumnFilters={true}
+//         enablePagination={true}
+//         enableSorting={true}
+//         enableBottomToolbar={true}
+//         enableRowActions={true}
+//         enableTopToolbar={true}
+//         enableRowNumbers={true}
+//         muiTableBodyRowProps={{ hover: false }}
+//         // renderRowActions={({ row }) => (
+//         //   <MenuItem>
+//         //     <div className="flex items-center justify-center gap-2">
+//         //       <Link
+//         //         className="bg-yellow-600 rounded p-2 flex-1 focus:outline-none border-2 border-orange-400 text-white"
+//         //         href={`/admin/account/${row.original.id}/edit`}
+//         //       >
+//         //         <Edit className="" />
+//         //       </Link>
+//         //       <Link
+//         //         className="bg-red-600 rounded p-2 flex-1 focus:outline-none border-2 border-red-400 text-white"
+//         //         href={`/admin/account/${row.original.id}`}
+//         //         onClick={() => {
+//         //           //
+//         //         }}
+//         //       >
+//         //         <Delete className="" />
+//         //       </Link>
+//         //     </div>
+//         //   </MenuItem>
+//         // )}
+//         state={{
+//           isLoading: isLoading && data == null,
+//         }}
+//       />
+//     </TableDashboard>
+//   );
+// }
 
 function OrderCard({ order }: { order: Transaction }) {
   const navigate = useNavigate();
