@@ -5,6 +5,7 @@ import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Container from "@mui/material/Container";
+import Drawer from "@mui/material/Drawer";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
@@ -17,7 +18,6 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { useUser } from "./hooks/useUser";
 import { currencyFormatter } from "./utils/formatter";
-
 
 export default function ResponsiveAppBar() {
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(
@@ -54,8 +54,10 @@ export default function ResponsiveAppBar() {
       : null,
     Customer: user?.user?.role == "Admin" ? "/admin/account/customer" : null,
     Courier: user?.user?.role == "Admin" ? "/admin/account/courier" : null,
-    Order: user?.user?.role == "Customer" ? "/user/order" : null,
-    Transaction: ["Customer", "Admin"].includes(user?.user?.role ?? "")
+    Order: ["Customer", "Admin"].includes(user?.user?.role ?? "")
+      ? "/user/order"
+      : null,
+    Sale: ["Customer", "Admin"].includes(user?.user?.role ?? "")
       ? "/user/transaction"
       : null,
     Cart: ["Customer"].includes(user?.user?.role ?? "") ? "/user/cart" : null,
@@ -108,30 +110,34 @@ export default function ResponsiveAppBar() {
             >
               <MenuIcon />
             </IconButton>
-            <Menu
-              id="menu-appbar"
-              anchorEl={anchorElNav}
-              anchorOrigin={{
-                vertical: "bottom",
-                horizontal: "left",
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: "top",
-                horizontal: "left",
-              }}
-              open={Boolean(anchorElNav)}
-              onClose={handleCloseNavMenu}
-              sx={{
-                display: { xs: "block", md: "none" },
-              }}
-            >
+            <Drawer open={Boolean(anchorElNav)} onClose={handleCloseNavMenu}>
+              {/* <Menu */}
+              {/*   id="menu-appbar" */}
+              {/*   anchorEl={anchorElNav} */}
+              {/*   anchorOrigin={{ */}
+              {/*     vertical: "bottom", */}
+              {/*     horizontal: "left", */}
+              {/*   }} */}
+              {/*   keepMounted */}
+              {/*   transformOrigin={{ */}
+              {/*     vertical: "top", */}
+              {/*     horizontal: "left", */}
+              {/*   }} */}
+              {/*   open={Boolean(anchorElNav)} */}
+              {/*   onClose={handleCloseNavMenu} */}
+              {/*   sx={{ */}
+              {/*     display: { xs: "block", md: "none" }, */}
+              {/*   }} */}
+              {/* > */}
               {pages.map(([page, link]) => (
                 <MenuItem key={page} onClick={handleCloseNavMenu}>
-                  <Typography textAlign="center">{page}</Typography>
+                  <NavLink to={link!}>
+                    <Typography textAlign="center">{page}</Typography>
+                  </NavLink>
                 </MenuItem>
               ))}
-            </Menu>
+              {/* </Menu> */}
+            </Drawer>
           </Box>
           <AdbIcon sx={{ display: { xs: "flex", md: "none" }, mr: 1 }} />
           <Typography
@@ -158,7 +164,7 @@ export default function ResponsiveAppBar() {
                 key={page}
                 to={link!}
                 onClick={handleCloseNavMenu}
-                style={{ margin: "4px" }}
+                style={{ margin: "4px", color: "white" }}
                 // style={{ my: 2, color: "white", display: "block" }}
               >
                 <Typography>{page}</Typography>
@@ -173,12 +179,12 @@ export default function ResponsiveAppBar() {
               </>
             ) : settings ? (
               <>
-                <Typography component="a" sx={{ m: 4 }}>
+                <Typography component="a" sx={{ m: 4, color: "white" }}>
                   {currencyFormatter.format(user?.user?.balance || ("" as any))}
                 </Typography>
 
                 <Tooltip title="Open settings">
-                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                  <IconButton onClick={handleOpenUserMenu} sx={{ m: 2 }}>
                     {user?.user?.email}
                   </IconButton>
                 </Tooltip>
