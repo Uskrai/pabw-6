@@ -83,37 +83,27 @@ pub async fn create(
         super::auth::UserRole::Admin => {}
     }
 
-    let insert = insert(&accounts, &argon, request).await?;
+    let insert = super::auth::create_user(
+        accounts,
+        argon,
+        super::auth::CreateUserRequest {
+            email: request.email,
+            password: request.password,
+            confirm_password: request.confirm_password,
+            balance: request
+                .balance
+                .map(|it| it.0)
+                .unwrap_or_else(|| Decimal::from(0)),
+            role: request.role,
+        },
+    )
+    .await?;
 
-    Ok(Json(insert.model.into()))
+    Ok(Json(insert.into()))
 }
 
 pub struct InsertResponse {
     pub model: UserModel,
-}
-
-pub async fn insert(
-    accounts: &UserCollection,
-    argon: &Argon2<'_>,
-    request: AccountRequest,
-) -> Result<InsertResponse, Error> {
-    let id = ObjectId::new();
-
-    let model = UserModel {
-        id,
-        email: request.email,
-        password: crate::util::hash_password(argon, &request.password)?,
-        role: request.role,
-        balance: request
-            .balance
-            .map(Into::into)
-            .unwrap_or_else(|| Decimal::from(0)),
-        created_at: OffsetDateTime::now_utc().into(),
-        updated_at: OffsetDateTime::now_utc().into(),
-    };
-    accounts.insert_one(&model, None).await?;
-
-    Ok(InsertResponse { model })
 }
 
 #[derive(Validate, Serialize, Deserialize)]
@@ -155,6 +145,23 @@ pub async fn update(
         .find_one(bson::doc! {"_id": account_id}, None)
         .await?
         .ok_or_else(|| Error::NoResource)?;
+
+    if let Some(email) = &request.email {
+        if email != &account.email {
+            let count = accounts
+                .count_documents(
+                    bson::doc! {
+                        "email": email
+                    },
+                    None,
+                )
+                .await?;
+
+            if count > 0 {
+                return Err(Error::MustUniqueError("email".to_string()));
+            }
+        }
+    }
 
     let account = UserModel {
         id: account.id,
@@ -205,4 +212,236 @@ pub async fn delete(
     accounts.soft_delete_one_by_id(account_id).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_matches::assert_matches;
+    use axum::{extract::Path, Json};
+    use bson::oid::ObjectId;
+    use rust_decimal::Decimal;
+
+    use crate::{
+        api::v1::{auth::UserRole, tests::bootstrap},
+        error::Error,
+    };
+
+    #[tokio::test]
+    async fn test_create() {
+        let bootstrap = bootstrap().await;
+
+        let it = super::create(
+            bootstrap.user_collection(),
+            bootstrap.argon(),
+            bootstrap.user_access(),
+            Json(super::AccountRequest {
+                email: "email@test.com".to_string(),
+                password: "password".to_string(),
+                confirm_password: "password".to_string(),
+                balance: Some(Decimal::from(0).into()),
+                role: UserRole::Customer,
+            }),
+        )
+        .await
+        .unwrap();
+
+        let response = super::index(bootstrap.user_collection()).await.unwrap().0;
+
+        assert_eq!(response.accounts.len(), 2);
+
+        let _ = super::show(bootstrap.user_collection(), Path(it.id.to_string()))
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_update() {
+        let bootstrap = bootstrap().await;
+
+        let it = super::create(
+            bootstrap.user_collection(),
+            bootstrap.argon(),
+            bootstrap.user_access(),
+            Json(super::AccountRequest {
+                email: "email@test.com".to_string(),
+                password: "password".to_string(),
+                confirm_password: "password".to_string(),
+                balance: Some(Decimal::from(0).into()),
+                role: UserRole::Customer,
+            }),
+        )
+        .await
+        .unwrap();
+
+        let _it = super::update(
+            bootstrap.user_access(),
+            bootstrap.user_collection(),
+            bootstrap.argon(),
+            Path(it.id.to_string()),
+            Json(super::UpdateRequest {
+                email: "email@test.com".to_string().into(),
+                password: "updatepasssword".to_string().into(),
+                _confirm_password: "updatepasssword".to_string().into(),
+                balance: Some(Decimal::from(0).into()),
+                role: UserRole::Customer.into(),
+            }),
+        )
+        .await
+        .expect("cannot update with same email");
+
+        let _it = super::update(
+            bootstrap.user_access(),
+            bootstrap.user_collection(),
+            bootstrap.argon(),
+            Path(it.id.to_string()),
+            Json(super::UpdateRequest {
+                email: "updateemail@test.com".to_string().into(),
+                password: "updatepasssword".to_string().into(),
+                _confirm_password: "updatepasssword".to_string().into(),
+                balance: Some(Decimal::from(0).into()),
+                role: UserRole::Customer.into(),
+            }),
+        )
+        .await
+        .expect("cannot update");
+
+        let error = super::update(
+            bootstrap.user_access(),
+            bootstrap.user_collection(),
+            bootstrap.argon(),
+            Path(it.id.to_string()),
+            Json(super::UpdateRequest {
+                email: bootstrap.user_email().into(),
+                password: "updatepasssword".to_string().into(),
+                _confirm_password: "updatepasssword".to_string().into(),
+                balance: Some(Decimal::from(0).into()),
+                role: UserRole::Customer.into(),
+            }),
+        )
+        .await
+        .expect_err("can update with same email");
+
+        assert_matches!(error, Error::MustUniqueError(string) if string == "email");
+    }
+
+    #[tokio::test]
+    async fn test_delete() {
+        let bootstrap = bootstrap().await;
+
+        let it = super::create(
+            bootstrap.user_collection(),
+            bootstrap.argon(),
+            bootstrap.user_access(),
+            Json(super::AccountRequest {
+                email: "email@test.com".to_string(),
+                password: "password".to_string(),
+                confirm_password: "password".to_string(),
+                balance: Some(Decimal::from(0).into()),
+                role: UserRole::Customer,
+            }),
+        )
+        .await
+        .unwrap();
+
+        super::delete(
+            bootstrap.user_collection(),
+            bootstrap.user_access(),
+            Path(it.id.0.to_string()),
+        )
+        .await
+        .unwrap();
+
+        let response = super::index(bootstrap.user_collection()).await.unwrap().0;
+
+        assert_eq!(response.accounts.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_noresource() {
+        let bootstrap = bootstrap().await;
+
+        let id = ObjectId::new();
+
+        let error = super::show(bootstrap.user_collection(), Path(id.to_string()))
+            .await
+            .expect_err("can show noresource");
+        assert_matches!(error, Error::NoResource);
+
+        let error = super::update(
+            bootstrap.user_access(),
+            bootstrap.user_collection(),
+            bootstrap.argon(),
+            Path(id.to_string()),
+            Json(super::UpdateRequest {
+                email: bootstrap.user_email().into(),
+                password: "updatepasssword".to_string().into(),
+                _confirm_password: "updatepasssword".to_string().into(),
+                balance: Some(Decimal::from(0).into()),
+                role: UserRole::Customer.into(),
+            }),
+        )
+        .await
+        .expect_err("can update noresource");
+        assert_matches!(error, Error::NoResource);
+
+        let error = super::delete(
+            bootstrap.user_collection(),
+            bootstrap.user_access(),
+            Path(id.to_string()),
+        )
+        .await
+        .expect_err("can delete noresource");
+        assert_matches!(error, Error::NoResource);
+    }
+
+    #[tokio::test]
+    async fn test_as_user() {
+        let bootstrap = bootstrap().await;
+        let id = ObjectId::new();
+
+        for (i, role) in [UserRole::Customer, UserRole::Courier].into_iter().enumerate() {
+            let bootstrap = bootstrap.derive(&format!("user{i}@test.com"), "password", role).await;
+            let error = super::create(
+                bootstrap.user_collection(),
+                bootstrap.argon(),
+                bootstrap.user_access(),
+                Json(super::AccountRequest {
+                    email: "email@test.com".to_string(),
+                    password: "password".to_string(),
+                    confirm_password: "password".to_string(),
+                    balance: Some(Decimal::from(0).into()),
+                    role: UserRole::Customer,
+                }),
+            )
+            .await
+            .expect_err("can create as user");
+            assert_matches!(error, Error::Forbidden);
+
+            let error = super::update(
+                bootstrap.user_access(),
+                bootstrap.user_collection(),
+                bootstrap.argon(),
+                Path(id.to_string()),
+                Json(super::UpdateRequest {
+                    email: bootstrap.user_email().into(),
+                    password: "updatepasssword".to_string().into(),
+                    _confirm_password: "updatepasssword".to_string().into(),
+                    balance: Some(Decimal::from(0).into()),
+                    role: UserRole::Customer.into(),
+                }),
+            )
+            .await
+            .expect_err("can update as user");
+            assert_matches!(error, Error::Forbidden);
+
+            let error = super::delete(
+                bootstrap.user_collection(),
+                bootstrap.user_access(),
+                Path(id.to_string()),
+            )
+            .await
+            .expect_err("can delete as user");
+            assert_matches!(error, Error::Forbidden);
+        }
+    }
 }

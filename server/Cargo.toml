@@ -8,11 +8,13 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.69"
 argon2 = "0.5.0"
+assert_matches = "1.5.0"
 axum = { version = "0.6.10", features = ["macros", "headers"] }
 base64 = "0.21.0"
 bson = { version = "2.5.0", features = ["time-0_3"] }
 dotenvy = "0.15.6"
 jsonwebtoken = "8.2.0"
+lazy_static = "1.4.0"
 mongodb = { version = "2.4.0", features = ["tracing"] }
 num-bigint = { version = "0.4.3", features = ["serde"] }
 password-hash = { version = "0.5.0", features = ["std"] }
@@ -20,6 +22,7 @@ rand = "0.8.5"
 rust_decimal = "1.29.0"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.94"
+tap = "1.0.1"
 thiserror = "1.0.39"
 time = { version = "0.3.20", features = ["serde-human-readable"] }
 tokio = { version = "1.26.0", features = ["rt-multi-thread"] }
@@ -28,3 +31,6 @@ tower-http = { version = "0.4.0", features = ["trace", "fs"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 validator = { version = "0.16.0", features = ["derive"] }
+
+[profile.tarpaulin]
+inherits = "test"

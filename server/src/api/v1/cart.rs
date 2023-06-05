@@ -175,9 +175,14 @@ pub async fn delete(
 
 #[cfg(test)]
 mod tests {
+    use assert_matches::assert_matches;
     use axum::Json;
 
-    use crate::api::v1::{auth::UserRole, tests::bootstrap};
+    use crate::{
+        api::v1::{auth::UserRole, tests::bootstrap},
+        error::Error,
+        util::PathObjectId,
+    };
 
     #[tokio::test]
     pub async fn test_customer_can_insert() {
@@ -211,13 +216,11 @@ mod tests {
         let _first = create(10).await.unwrap();
         let second = create(1000).await.unwrap();
 
-        let count = bootstrap
-            .cart_collection()
-            .0
-            .count_documents(None, None)
+        let Json(response) = super::index(customer.user_access(), bootstrap.cart_collection())
             .await
             .unwrap();
-        assert_eq!(count, 1);
+
+        assert_eq!(response.carts.len(), 1);
         let actual = bootstrap
             .cart_collection()
             .0
@@ -230,7 +233,53 @@ mod tests {
     }
 
     #[tokio::test]
-    pub async fn test_cannot_insert_when_quantity_more_than_stock() {
+    pub async fn test_other_user_cannot_view() {
+        let bootstrap = bootstrap().await;
+        let product = bootstrap.create_product(1000, 1000).await;
+
+        let customer = bootstrap
+            .derive("customer@email.com", "password", UserRole::Customer)
+            .await;
+
+        let create = |quantity: i64| {
+            let bootstrap = &bootstrap;
+            let customer = &customer;
+            let product = &product;
+            async move {
+                super::create(
+                    bootstrap.cart_collection(),
+                    bootstrap.product_collection(),
+                    customer.user_access(),
+                    Json(super::CreateRequest {
+                        product_id: product.id,
+                        quantity: crate::util::BigIntString(quantity.into()),
+                    }),
+                )
+                .await
+                .map(|it| it.0)
+            }
+        };
+
+        let first = create(100).await.unwrap();
+
+        let error = super::show(
+            bootstrap.user_access(),
+            bootstrap.cart_collection(),
+            PathObjectId(first.id.0),
+        )
+        .await
+        .expect_err("viewing other user cart");
+        assert_matches!(error, Error::Forbidden);
+
+        let Json(response) = super::index(bootstrap.user_access(), bootstrap.cart_collection())
+            .await
+            .unwrap();
+
+        assert_eq!(response.carts.len(), 0);
+    }
+
+    #[tokio::test]
+    pub async fn test_cannot_insert_when_quantity_more_than_stock_or_less_than_zero() {
         let bootstrap = bootstrap().await;
 
         let product = bootstrap.create_product(1000, 1000).await;
@@ -258,8 +307,15 @@ mod tests {
             }
         };
 
-        let _second = create(1001).await.expect_err("Shoud error because quantity is more than stock");
-        let _second = create(i64::MAX).await.expect_err("Shoud error because quantity is more than stock");
+        let _second = create(1001)
+            .await
+            .expect_err("Shoud error because quantity is more than stock");
+        let _second = create(i64::MAX)
+            .await
+            .expect_err("Shoud error because quantity is more than stock");
+
+        let _second = create(0).await.expect_err("quantity is zero");
+        let _second = create(-1).await.expect_err("quantity is less than zero");
 
         let count = bootstrap
             .cart_collection()
@@ -269,5 +325,83 @@ mod tests {
             .unwrap();
 
         assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_delete_cart() {
+        let bootstrap = bootstrap().await;
+        let product = bootstrap.create_product(1000, 1000).await;
+
+        let customer = bootstrap
+            .derive("customer@email.com", "password", UserRole::Customer)
+            .await;
+
+        let create = |quantity: i64| {
+            let bootstrap = &bootstrap;
+            let customer = &customer;
+            let product = &product;
+            async move {
+                super::create(
+                    bootstrap.cart_collection(),
+                    bootstrap.product_collection(),
+                    customer.user_access(),
+                    Json(super::CreateRequest {
+                        product_id: product.id,
+                        quantity: crate::util::BigIntString(quantity.into()),
+                    }),
+                )
+                .await
+                .map(|it| it.0)
+            }
+        };
+
+        let first = create(1).await.unwrap();
+
+        let _ = super::delete(
+            bootstrap.cart_collection(),
+            customer.user_access(),
+            PathObjectId(first.id.0),
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_delete_other_user_cart() {
+        let bootstrap = bootstrap().await;
+        let product = bootstrap.create_product(1000, 1000).await;
+
+        let customer = bootstrap
+            .derive("customer@email.com", "password", UserRole::Customer)
+            .await;
+
+        let create = |quantity: i64| {
+            let bootstrap = &bootstrap;
+            let customer = &customer;
+            let product = &product;
+            async move {
+                super::create(
+                    bootstrap.cart_collection(),
+                    bootstrap.product_collection(),
+                    customer.user_access(),
+                    Json(super::CreateRequest {
+                        product_id: product.id,
+                        quantity: crate::util::BigIntString(quantity.into()),
+                    }),
+                )
+                .await
+                .map(|it| it.0)
+            }
+        };
+
+        let first = create(1).await.unwrap();
+
+        let _ = super::delete(
+            bootstrap.cart_collection(),
+            bootstrap.user_access(),
+            PathObjectId(first.id.0),
+        )
+        .await
+        .expect_err("deleting other user cart");
     }
 }

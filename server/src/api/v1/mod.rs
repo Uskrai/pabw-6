@@ -7,8 +7,11 @@ pub mod transaction;
 pub mod user;
 
 #[cfg(test)]
-mod tests {
-    use std::sync::Arc;
+pub mod tests {
+    use std::{
+        collections::HashSet,
+        sync::{Arc, Mutex},
+    };
 
     use axum::{extract::State, Json};
     use bson::oid::ObjectId;
@@ -19,13 +22,19 @@ mod tests {
     use crate::app::AppState;
 
     use super::{
-        auth::{UserAccess, UserRole},
-        product::ProductCollection, cart::CartCollection,
+        auth::{UserAccess, UserCollection, UserRole},
+        cart::CartCollection,
+        product::ProductCollection,
+        token::{JwtState, RefreshTokenCollection},
     };
+
+    lazy_static::lazy_static! {
+        pub static ref BOOTSTRAP_LOCK: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
+    }
 
     #[allow(dead_code)]
     pub struct Bootstrap {
-        user_model: crate::api::v1::auth::UserModel,
+        pub user_model: crate::api::v1::auth::UserModel,
         user_password: String,
         session: crate::api::v1::auth::RefreshClaim,
         pub app_state: AppState,
@@ -40,6 +49,7 @@ mod tests {
 
     impl Drop for Cleanup {
         fn drop(&mut self) {
+            BOOTSTRAP_LOCK.lock().unwrap().remove(&self.database_name);
             // let handle = tokio::runtime::Handle::current();
             //
             // let app_state = self.app_state.clone();
@@ -71,14 +81,26 @@ mod tests {
         }
 
         pub fn user_access(&self) -> UserAccess {
-            // let token = &self.session.1
-            //
+            UserAccess::from_token(&self.app_state.jwt_state, &self.user_token()).unwrap()
+        }
 
+        pub fn user_token(&self) -> String {
             let model =
                 super::token::generate_access_token(&self.app_state.jwt_state, &self.user_model)
                     .unwrap();
 
-            UserAccess::from_token(&self.app_state.jwt_state, &model.token).unwrap()
+            model.token
+        }
+
+        pub async fn user_refresh_token(&self) -> String {
+            super::token::create_refresh_token(
+                &self.app_state.jwt_state,
+                &self.app_state.argon,
+                self.refresh_token_collection().0,
+                &self.user_model,
+            )
+            .await
+            .unwrap()
         }
 
         pub fn user_id(&self) -> ObjectId {
@@ -122,6 +144,22 @@ mod tests {
             State(self.app_state.cart_collection.clone())
         }
 
+        pub fn user_collection(&self) -> State<UserCollection> {
+            State(self.app_state.user_collection.clone())
+        }
+
+        pub fn refresh_token_collection(&self) -> State<RefreshTokenCollection> {
+            State(self.app_state.token_collection.clone())
+        }
+
+        pub fn argon(&self) -> State<argon2::Argon2<'static>> {
+            State(self.app_state.argon.clone())
+        }
+
+        pub fn jwt_state(&self) -> State<JwtState> {
+            State(self.app_state.jwt_state.clone())
+        }
+
         pub async fn create_product(&self, price: i64, stock: i64) -> super::product::Product {
             use super::product::*;
 
@@ -154,12 +192,13 @@ mod tests {
         let user = super::auth::create_user(
             app.user_collection.clone(),
             app.argon.clone(),
-            super::auth::RegisterRequest {
+            super::auth::CreateUserRequest {
                 email: email.to_string(),
                 password: password.to_string(),
                 confirm_password: password.to_string(),
+                role,
+                balance: Decimal::from(0),
             },
-            role,
         )
         .await
         .unwrap();
@@ -179,11 +218,30 @@ mod tests {
             .expect("Cannot retreive JWT_SECRET_KEY from environment variable.");
 
         let database_name = format!("ecommerce-test-{}", ObjectId::new().to_string());
-        let app_state = AppState::new(mongodb_url, &database_name).await.unwrap();
+        {
+            let mut vec = BOOTSTRAP_LOCK.lock().unwrap();
+            vec.insert(database_name.clone());
+        }
+
+        let argon = argon2::Argon2::new(
+            Default::default(),
+            Default::default(),
+            argon2::ParamsBuilder::new()
+                // .m_cost(1)
+                .p_cost(1)
+                .t_cost(1)
+                .build()
+                .unwrap(),
+        );
+        let jwt_state = JwtState::new_from_env();
+        let app_state = AppState::new(argon, jwt_state, mongodb_url, &database_name)
+            .await
+            .unwrap();
         let password = "password";
         let (user, session) =
             create_user(&app_state, "example@example.com", password, UserRole::Admin).await;
 
+        // let track =
         let track_cleanup = Arc::new(Cleanup {
             database_name,
             app_state: app_state.clone(),

@@ -9,6 +9,7 @@ use bson::oid::ObjectId;
 use num_bigint::BigInt;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use tap::TapFallible;
 use time::OffsetDateTime;
 
 use crate::{
@@ -104,7 +105,9 @@ pub async fn show(
     State(products): State<ProductCollection>,
     Path(product_id): Path<String>,
 ) -> Result<Json<Product>, Error> {
-    let product_id = ObjectId::from_str(&product_id).map_err(|_| Error::NoResource)?;
+    let product_id = ObjectId::from_str(&product_id)
+        .map_err(|_| Error::NoResource)
+        .tap_err(|_| tracing::debug!("tried accessing non existing product"))?;
 
     let product = products
         .find_one(
@@ -140,12 +143,17 @@ pub async fn create(
     Json(request): Json<CreateRequest>,
 ) -> Result<Json<Product>, Error> {
     match user.role {
-        super::auth::UserRole::Courier => return Err(Error::Forbidden),
+        super::auth::UserRole::Courier => {
+            return Err(Error::Forbidden)
+                .tap_err(|_| tracing::debug!("tried creating product as courier"))
+        }
         super::auth::UserRole::Customer | super::auth::UserRole::Admin => {}
     }
 
-    if request.price <= 0.into() || request.stock.0 <= 0.into() {
-        return Err(Error::Forbidden);
+    if request.price < 0.into() || request.stock.0 < 0.into() {
+        return Err(Error::Forbidden).tap_err(|_| {
+            tracing::debug!("tried creating product with stock or price less than 0")
+        });
     }
 
     let id = ObjectId::new();
@@ -180,6 +188,7 @@ pub struct UpdateRequest {
 #[tracing::instrument(
     skip_all,
     fields(
+        id = %product_id,
         user = ?user,
     )
 )]
@@ -190,12 +199,16 @@ pub async fn update(
     Json(request): Json<UpdateRequest>,
 ) -> Result<Json<Product>, Error> {
     match user.role {
-        crate::api::v1::auth::UserRole::Courier => return Err(Error::Forbidden),
+        crate::api::v1::auth::UserRole::Courier => {
+            return Err(Error::Forbidden)
+                .tap_err(|_| tracing::debug!("tried updating product as courier"))
+        }
         crate::api::v1::auth::UserRole::Customer | crate::api::v1::auth::UserRole::Admin => {}
     }
 
     if request.price < 0.into() || request.stock.0 < 0.into() {
-        return Err(Error::Forbidden);
+        return Err(Error::Forbidden)
+            .tap_err(|_| tracing::debug!("tried setting product stok or price to less than 0"));
     }
 
     let product_id = ObjectId::from_str(&product_id).map_err(|_| Error::NoResource)?;
@@ -203,12 +216,14 @@ pub async fn update(
     let product = products
         .find_one(bson::doc! {"_id": product_id}, None)
         .await?
-        .ok_or_else(|| Error::NoResource)?;
+        .ok_or_else(|| Error::NoResource)
+        .tap_err(|_| tracing::debug!("tried updating non existing product"))?;
 
     match user.role {
         super::auth::UserRole::Customer => {
             if product.user_id != user.id {
-                return Err(Error::Forbidden);
+                return Err(Error::Forbidden)
+                    .tap_err(|_| tracing::debug!("tried updating other user product"));
             }
         }
         super::auth::UserRole::Courier | super::auth::UserRole::Admin => {}
@@ -256,7 +271,10 @@ pub async fn delete(
     Path(product_id): Path<String>,
 ) -> Result<(), Error> {
     match user.role {
-        crate::api::v1::auth::UserRole::Courier => return Err(Error::Forbidden),
+        crate::api::v1::auth::UserRole::Courier => {
+            return Err(Error::Forbidden)
+                .tap_err(|_| tracing::debug!("tried deleting product as courier"))
+        }
         crate::api::v1::auth::UserRole::Customer | crate::api::v1::auth::UserRole::Admin => {}
     }
 
@@ -265,12 +283,14 @@ pub async fn delete(
     let product = products
         .find_one(bson::doc! {"_id": product_id}, None)
         .await?
-        .ok_or_else(|| Error::NoResource)?;
+        .ok_or_else(|| Error::NoResource)
+        .tap_err(|_| tracing::debug!("tried deleting non existing product"))?;
 
     match user.role {
         super::auth::UserRole::Customer => {
             if product.user_id != user.id {
-                return Err(Error::Forbidden);
+                return Err(Error::Forbidden)
+                    .tap_err(|_| tracing::debug!("tried deleting other user product"));
             }
         }
         super::auth::UserRole::Courier | super::auth::UserRole::Admin => {}
@@ -286,11 +306,17 @@ pub async fn delete(
 
 #[cfg(test)]
 mod tests {
+    use assert_matches::assert_matches;
     use axum::{extract::Path, Json};
+    use bson::oid::ObjectId;
     use num_bigint::BigInt;
     use rust_decimal::Decimal;
 
-    use crate::api::v1::{auth::UserRole, tests::bootstrap};
+    use crate::{
+        api::v1::{auth::UserRole, tests::bootstrap},
+        error::Error,
+        util::BigIntString,
+    };
 
     use super::{CreateRequest, UpdateRequest};
 
@@ -323,28 +349,6 @@ mod tests {
             .expect("product should exist after create");
 
         assert_eq!(product, model.into())
-    }
-
-    #[tokio::test]
-    pub async fn test_courier_cannot_insert() {
-        let bootstrap = bootstrap().await;
-
-        let bootstrap = bootstrap
-            .derive("courier@email.com", "password", UserRole::Courier)
-            .await;
-
-        let product = super::create(
-            bootstrap.product_collection(),
-            bootstrap.user_access(),
-            Json(CreateRequest {
-                name: "name".to_string(),
-                description: "description".to_string(),
-                price: Decimal::from(1),
-                stock: BigInt::from(1).into(),
-            }),
-        )
-        .await
-        .expect_err("courier should not be able to create product");
     }
 
     #[tokio::test]
@@ -388,6 +392,47 @@ mod tests {
     }
 
     #[tokio::test]
+    pub async fn test_customer_cannot_update_other_product() {
+        let bootstrap = bootstrap()
+            .await
+            .derive("customer@email.com", "password", UserRole::Customer)
+            .await;
+
+        let Json(product) = super::create(
+            bootstrap.product_collection(),
+            bootstrap.user_access(),
+            Json(CreateRequest {
+                name: "name".to_string(),
+                description: "description".to_string(),
+                price: Decimal::from(1),
+                stock: BigInt::from(1).into(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let customer = bootstrap
+            .derive("customer2@email.com", "password", UserRole::Customer)
+            .await;
+
+        let update = super::update(
+            customer.user_access(),
+            bootstrap.product_collection(),
+            Path(product.id.to_string()),
+            Json(UpdateRequest {
+                name: "up-name".to_string(),
+                description: "up-description".to_string(),
+                price: Decimal::from(10),
+                stock: BigInt::from(10).into(),
+            }),
+        )
+        .await
+        .expect_err("Customer cannot update other product");
+
+        assert_matches!(update, Error::Forbidden);
+    }
+
+    #[tokio::test]
     pub async fn test_customer_can_delete() {
         let bootstrap = bootstrap()
             .await
@@ -421,6 +466,40 @@ mod tests {
     }
 
     #[tokio::test]
+    pub async fn test_customer_cannot_delete_other_product() {
+        let bootstrap = bootstrap()
+            .await
+            .derive("customer@email.com", "password", UserRole::Customer)
+            .await;
+
+        let Json(product) = super::create(
+            bootstrap.product_collection(),
+            bootstrap.user_access(),
+            Json(CreateRequest {
+                name: "name".to_string(),
+                description: "description".to_string(),
+                price: Decimal::from(1),
+                stock: BigInt::from(1).into(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let customer = bootstrap
+            .derive("customer2@email.com", "password", UserRole::Customer)
+            .await;
+
+        let product = super::delete(
+            bootstrap.product_collection(),
+            customer.user_access(),
+            Path(product.id.to_string()),
+        )
+        .await
+        .expect_err("Customer cannot delete other user product");
+        assert_matches!(product, Error::Forbidden);
+    }
+
+    #[tokio::test]
     pub async fn test_customer_can_view_all() {
         let bootstrap = bootstrap()
             .await
@@ -449,5 +528,203 @@ mod tests {
                 .len(),
             1
         )
+    }
+
+    #[tokio::test]
+    pub async fn test_cannot_create_product_with_less_than_zero_price_or_stock() {
+        let bootstrap = bootstrap()
+            .await
+            .derive("customer@email.com", "password", UserRole::Customer)
+            .await;
+
+        for err in [-10, -1] {
+            for ok in [0, 1, 2] {
+                let product = super::create(
+                    bootstrap.product_collection(),
+                    bootstrap.user_access(),
+                    Json(CreateRequest {
+                        name: "test".to_string(),
+                        description: "".to_string(),
+                        price: Decimal::from(ok),
+                        stock: BigInt::from(err).into(),
+                    }),
+                )
+                .await
+                .expect_err("");
+                assert_matches!(product, Error::Forbidden);
+
+                let product = super::create(
+                    bootstrap.product_collection(),
+                    bootstrap.user_access(),
+                    Json(CreateRequest {
+                        name: "test".to_string(),
+                        description: "".to_string(),
+                        price: Decimal::from(ok),
+                        stock: BigInt::from(err).into(),
+                    }),
+                )
+                .await
+                .expect_err("");
+                assert_matches!(product, Error::Forbidden);
+            }
+        }
+    }
+
+    #[tokio::test]
+    pub async fn test_cannot_update_product_with_less_than_zero_price_or_stock() {
+        let bootstrap = bootstrap()
+            .await
+            .derive("customer@email.com", "password", UserRole::Customer)
+            .await;
+
+        let Json(product) = super::create(
+            bootstrap.product_collection(),
+            bootstrap.user_access(),
+            Json(CreateRequest {
+                name: "test".to_string(),
+                description: "".to_string(),
+                price: Decimal::from(1),
+                stock: BigInt::from(1).into(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        for err in [-10, -1] {
+            for ok in [0, 1, 2] {
+                let update = super::update(
+                    bootstrap.user_access(),
+                    bootstrap.product_collection(),
+                    Path(product.id.to_string()),
+                    Json(UpdateRequest {
+                        name: "up-name".to_string(),
+                        description: "up-description".to_string(),
+                        price: Decimal::from(err),
+                        stock: BigInt::from(ok).into(),
+                    }),
+                )
+                .await
+                .expect_err("");
+                assert_matches!(update, Error::Forbidden);
+
+                let update = super::update(
+                    bootstrap.user_access(),
+                    bootstrap.product_collection(),
+                    Path(product.id.to_string()),
+                    Json(UpdateRequest {
+                        name: "up-name".to_string(),
+                        description: "up-description".to_string(),
+                        price: Decimal::from(err),
+                        stock: BigInt::from(ok).into(),
+                    }),
+                )
+                .await
+                .expect_err("");
+
+                assert_matches!(update, Error::Forbidden);
+            }
+        }
+    }
+
+    #[tokio::test]
+    pub async fn test_courier_cannot_insert() {
+        let bootstrap = bootstrap().await;
+
+        let bootstrap = bootstrap
+            .derive("courier@email.com", "password", UserRole::Courier)
+            .await;
+
+        let product = super::create(
+            bootstrap.product_collection(),
+            bootstrap.user_access(),
+            Json(CreateRequest {
+                name: "name".to_string(),
+                description: "description".to_string(),
+                price: Decimal::from(1),
+                stock: BigInt::from(1).into(),
+            }),
+        )
+        .await
+        .expect_err("courier should not be able to create product");
+        assert_matches!(product, Error::Forbidden);
+    }
+
+    #[tokio::test]
+    pub async fn test_courier_cannot_update() {
+        let bootstrap = bootstrap().await;
+
+        let bootstrap = bootstrap
+            .derive("courier@email.com", "password", UserRole::Courier)
+            .await;
+
+        let update = super::update(
+            bootstrap.user_access(),
+            bootstrap.product_collection(),
+            Path(String::new()),
+            Json(UpdateRequest {
+                name: "up-name".to_string(),
+                description: "up-description".to_string(),
+                price: Decimal::from(10),
+                stock: BigInt::from(10).into(),
+            }),
+        )
+        .await
+        .expect_err("courier should not be able to delete product");
+        assert_matches!(update, Error::Forbidden);
+    }
+
+    #[tokio::test]
+    pub async fn test_courier_cannot_delete() {
+        let bootstrap = bootstrap().await;
+
+        let bootstrap = bootstrap
+            .derive("courier@email.com", "password", UserRole::Courier)
+            .await;
+
+        let update = super::delete(
+            bootstrap.product_collection(),
+            bootstrap.user_access(),
+            Path(String::new()),
+        )
+        .await
+        .expect_err("courier should not be able to delete product");
+        assert_matches!(update, Error::Forbidden);
+    }
+
+    #[tokio::test]
+    pub async fn test_non_existing_product() {
+        let bootstrap = bootstrap().await;
+
+        let show = super::show(
+            bootstrap.product_collection(),
+            Path(ObjectId::new().to_string()),
+        )
+        .await
+        .expect_err("");
+        assert_matches!(show, Error::NoResource);
+
+        let update = super::update(
+            bootstrap.user_access(),
+            bootstrap.product_collection(),
+            Path(ObjectId::new().to_string()),
+            Json(UpdateRequest {
+                name: "test".to_string(),
+                description: "test".to_string(),
+                price: Decimal::from(0u64),
+                stock: BigIntString(From::from(0)),
+            }),
+        )
+        .await
+        .expect_err("");
+        assert_matches!(update, Error::NoResource);
+
+        let delete = super::delete(
+            bootstrap.product_collection(),
+            bootstrap.user_access(),
+            Path(ObjectId::new().to_string()),
+        )
+        .await
+        .expect_err("");
+        assert_matches!(delete, Error::NoResource);
     }
 }

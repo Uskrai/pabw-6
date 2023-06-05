@@ -8,6 +8,7 @@ use axum::{
 use bson::oid::ObjectId;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use tap::TapFallible;
 use time::OffsetDateTime;
 use validator::Validate;
 
@@ -25,12 +26,6 @@ use super::token::{
 #[derive(Clone)]
 pub struct UserCollection(pub Collection<UserModel>);
 
-impl std::ops::DerefMut for UserCollection {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 impl std::ops::Deref for UserCollection {
     type Target = Collection<UserModel>;
 
@@ -39,7 +34,7 @@ impl std::ops::Deref for UserCollection {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct UserModel {
     #[serde(rename = "_id")]
     pub id: ObjectId,
@@ -103,6 +98,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct RefreshToken(String);
 
 #[axum::async_trait]
@@ -113,16 +109,19 @@ impl<S> FromRequestParts<S> for RefreshToken {
         let cookie = parts
             .extract::<TypedHeader<Cookie>>()
             .await
-            .map_err(|_| Error::Unauthorized(UnauthorizedType::InvalidRefreshToken))?;
+            .map_err(|_| Error::Unauthorized(UnauthorizedType::InvalidRefreshToken))
+            .tap_err(|_| tracing::debug!("cookie not found"))?;
 
         let refresh_token = cookie
             .get("refresh_token")
-            .ok_or_else(|| Error::Unauthorized(UnauthorizedType::InvalidRefreshToken))?;
+            .ok_or_else(|| Error::Unauthorized(UnauthorizedType::InvalidRefreshToken))
+            .tap_err(|_| tracing::debug!("token not found"))?;
 
         Ok(Self(refresh_token.to_string()))
     }
 }
 
+#[derive(Debug)]
 pub struct RefreshClaim(pub RefreshTokenClaims, pub String);
 
 impl RefreshClaim {
@@ -222,11 +221,26 @@ impl From<UserModel> for RegisterResponse {
     }
 }
 
+#[derive(Validate)]
+pub struct CreateUserRequest {
+    #[validate(email)]
+    pub email: String,
+
+    #[validate(length(min = 8, max = 64))]
+    pub password: String,
+
+    #[validate(must_match = "password")]
+    pub confirm_password: String,
+
+    pub balance: Decimal,
+
+    pub role: UserRole,
+}
+
 pub async fn create_user(
     users: UserCollection,
     argon: Argon2<'_>,
-    request: RegisterRequest,
-    user_role: UserRole,
+    request: CreateUserRequest,
 ) -> Result<UserModel, Error> {
     request.validate()?;
     let count = users
@@ -246,8 +260,8 @@ pub async fn create_user(
         id: ObjectId::new(),
         email: request.email,
         password: hash_password(&argon, &request.password)?,
-        role: user_role,
-        balance: Decimal::from(0),
+        role: request.role,
+        balance: request.balance,
         created_at: OffsetDateTime::now_utc().into(),
         updated_at: OffsetDateTime::now_utc().into(),
     };
@@ -261,9 +275,19 @@ pub async fn register(
     State(argon): State<Argon2<'_>>,
     Json(request): Json<RegisterRequest>,
 ) -> Result<Json<RegisterResponse>, Error> {
-    create_user(users, argon, request, UserRole::Customer)
-        .await
-        .map(|it| Json(it.into()))
+    create_user(
+        users,
+        argon,
+        CreateUserRequest {
+            email: request.email,
+            password: request.password,
+            confirm_password: request.confirm_password,
+            balance: Decimal::from(0),
+            role: UserRole::Customer,
+        },
+    )
+    .await
+    .map(|it| Json(it.into()))
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -309,7 +333,7 @@ pub async fn login(
     let header = TypedHeader(
         SetCookie::decode(
             &mut [HeaderValue::from_str(&format!(
-                "refresh_token={}; HttpOnly; Secure; Path=/",
+                "refresh_token={}; HttpOnly; Path=/",
                 refresh_token
             ))
             .unwrap()]
@@ -357,6 +381,7 @@ pub async fn refresh_access_token(
     State(argon): State<Argon2<'static>>,
     RefreshClaim(claim, refresh_token): RefreshClaim,
 ) -> Result<Json<RefreshAccessTokenResponse>, Error> {
+    tracing::debug!("{:?}", claim);
     let model = refresh_tokens
         .find_one(bson::doc! { "_id": claim.sub }, None)
         .await?
@@ -379,4 +404,406 @@ pub async fn refresh_access_token(
         access_token: access_token.token,
         expired_at: access_token.expired_at.into(),
     }))
+}
+
+#[cfg(test)]
+mod test {
+    use assert_matches::assert_matches;
+    use axum::{extract::FromRequestParts, Json};
+
+    use crate::{
+        api::v1::tests::bootstrap,
+        error::{Error, UnauthorizedType},
+    };
+
+    #[tokio::test]
+    async fn test_register() {
+        let bootstrap = bootstrap().await;
+
+        let _ = super::register(
+            bootstrap.user_collection(),
+            bootstrap.argon(),
+            Json(super::RegisterRequest {
+                email: "email@gmail.com".to_string(),
+                password: "password".to_string(),
+                confirm_password: "password".to_string(),
+            }),
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_login() {
+        let bootstrap = bootstrap().await;
+
+        let _ = super::register(
+            bootstrap.user_collection(),
+            bootstrap.argon(),
+            Json(super::RegisterRequest {
+                email: "email@test.com".to_string(),
+                password: "password".to_string(),
+                confirm_password: "password".to_string(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let (_, Json(user)) = super::login(
+            bootstrap.user_collection(),
+            bootstrap.refresh_token_collection(),
+            bootstrap.jwt_state(),
+            bootstrap.argon(),
+            Json(super::LoginRequest {
+                email: "email@test.com".to_string(),
+                password: "password".to_string(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let _token = super::refresh_access_token(
+            bootstrap.user_collection(),
+            bootstrap.refresh_token_collection(),
+            bootstrap.jwt_state(),
+            bootstrap.argon(),
+            super::RefreshClaim::from_token(
+                &bootstrap.app_state.jwt_state,
+                user.refresh_token.clone(),
+            )
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+
+        let err = super::login(
+            bootstrap.user_collection(),
+            bootstrap.refresh_token_collection(),
+            bootstrap.jwt_state(),
+            bootstrap.argon(),
+            Json(super::LoginRequest {
+                email: "email@test.com".to_string(),
+                password: "wrongpassword".to_string(),
+            }),
+        )
+        .await
+        .unwrap_err();
+        assert_matches!(
+            err,
+            Error::Unauthorized(UnauthorizedType::WrongUsernameOrPassword)
+        );
+
+        let err = super::login(
+            bootstrap.user_collection(),
+            bootstrap.refresh_token_collection(),
+            bootstrap.jwt_state(),
+            bootstrap.argon(),
+            Json(super::LoginRequest {
+                email: "wrongemail@test.com".to_string(),
+                password: "wrongpassword".to_string(),
+            }),
+        )
+        .await
+        .unwrap_err();
+        assert_matches!(
+            err,
+            Error::Unauthorized(UnauthorizedType::WrongUsernameOrPassword)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_logout() {
+        let bootstrap = bootstrap().await;
+
+        let _ = super::register(
+            bootstrap.user_collection(),
+            bootstrap.argon(),
+            Json(super::RegisterRequest {
+                email: "email@test.com".to_string(),
+                password: "password".to_string(),
+                confirm_password: "password".to_string(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let (_, Json(user)) = super::login(
+            bootstrap.user_collection(),
+            bootstrap.refresh_token_collection(),
+            bootstrap.jwt_state(),
+            bootstrap.argon(),
+            Json(super::LoginRequest {
+                email: "email@test.com".to_string(),
+                password: "password".to_string(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let _ = super::logout(
+            bootstrap.refresh_token_collection(),
+            super::RefreshClaim::from_token(
+                &bootstrap.app_state.jwt_state,
+                user.refresh_token.clone(),
+            )
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+
+        let err = super::logout(
+            bootstrap.refresh_token_collection(),
+            super::RefreshClaim::from_token(
+                &bootstrap.app_state.jwt_state,
+                user.refresh_token.clone(),
+            )
+            .unwrap(),
+        )
+        .await
+        .unwrap_err();
+
+        assert_matches!(
+            err,
+            Error::Unauthorized(UnauthorizedType::InvalidRefreshToken)
+        );
+
+        let err = super::refresh_access_token(
+            bootstrap.user_collection(),
+            bootstrap.refresh_token_collection(),
+            bootstrap.jwt_state(),
+            bootstrap.argon(),
+            super::RefreshClaim::from_token(
+                &bootstrap.app_state.jwt_state,
+                user.refresh_token.clone(),
+            )
+            .unwrap(),
+        )
+        .await
+        .unwrap_err();
+
+        assert_matches!(
+            err,
+            Error::Unauthorized(UnauthorizedType::InvalidRefreshToken)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_refresh_access_token_deleted_user() {
+        let bootstrap = bootstrap().await;
+
+        let refresh_token = bootstrap.user_refresh_token().await;
+
+        bootstrap
+            .app_state
+            .user_collection
+            .delete_one(
+                bson::doc! {
+                    "_id": bootstrap.user_id()
+                },
+                None,
+            )
+            .await
+            .unwrap();
+
+        let error = super::refresh_access_token(
+            bootstrap.user_collection(),
+            bootstrap.refresh_token_collection(),
+            bootstrap.jwt_state(),
+            bootstrap.argon(),
+            super::RefreshClaim::from_token(&bootstrap.app_state.jwt_state, refresh_token).unwrap(),
+        )
+        .await
+        .unwrap_err();
+        assert_matches!(
+            error,
+            Error::Unauthorized(UnauthorizedType::InvalidRefreshToken)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_unique_email() {
+        let bootstrap = bootstrap().await;
+
+        let _ = super::register(
+            bootstrap.user_collection(),
+            bootstrap.argon(),
+            Json(super::RegisterRequest {
+                email: "email@gmail.com".to_string(),
+                password: "password".to_string(),
+                confirm_password: "password".to_string(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let err = super::register(
+            bootstrap.user_collection(),
+            bootstrap.argon(),
+            Json(super::RegisterRequest {
+                email: "email@gmail.com".to_string(),
+                password: "password".to_string(),
+                confirm_password: "password".to_string(),
+            }),
+        )
+        .await
+        .expect_err("");
+        assert_matches!(err, Error::MustUniqueError(_))
+    }
+
+    #[tokio::test]
+    pub async fn test_user_access() {
+        let bootstrap = bootstrap().await;
+
+        let (mut parts, _) = axum::http::request::Request::get("http://localhost")
+            .header(
+                "Authorization",
+                format!("Bearer {}", bootstrap.user_token()),
+            )
+            .body(())
+            .unwrap()
+            .into_parts();
+
+        let user = super::UserAccess::from_request_parts(&mut parts, &bootstrap.app_state)
+            .await
+            .unwrap();
+
+        assert_eq!(user.id, bootstrap.user_id());
+    }
+
+    #[tokio::test]
+    pub async fn test_user_access_invalid() {
+        let bootstrap = bootstrap().await;
+
+        let (mut parts, _) = axum::http::request::Request::get("http://localhost")
+            .header(
+                "Authorization",
+                format!(
+                    "Bearer {}",
+                    super::super::token::generate_access_token_with_exp(
+                        &bootstrap.app_state.jwt_state,
+                        &bootstrap.user_model,
+                        0
+                    )
+                    .unwrap()
+                ),
+            )
+            .body(())
+            .unwrap()
+            .into_parts();
+
+        let err = super::UserAccess::from_request_parts(&mut parts, &bootstrap.app_state)
+            .await
+            .unwrap_err();
+        assert_matches!(
+            err,
+            Error::Unauthorized(UnauthorizedType::InvalidAccessToken)
+        );
+    }
+
+    #[tokio::test]
+    pub async fn test_user_model() {
+        let bootstrap = bootstrap().await;
+
+        let (mut parts, _) = axum::http::request::Request::get("http://localhost")
+            .header(
+                "Authorization",
+                format!("Bearer {}", bootstrap.user_token()),
+            )
+            .body(())
+            .unwrap()
+            .into_parts();
+
+        let model = super::UserModel::from_request_parts(&mut parts, &bootstrap.app_state)
+            .await
+            .unwrap();
+
+        assert_eq!(model, bootstrap.user_model);
+    }
+
+    #[tokio::test]
+    async fn test_user_model_on_deleted_user() {
+        let bootstrap = bootstrap().await;
+
+        bootstrap
+            .app_state
+            .user_collection
+            .delete_one(
+                bson::doc! {
+                    "_id": bootstrap.user_id()
+                },
+                None,
+            )
+            .await
+            .unwrap();
+
+        let error =
+            super::UserModel::from_id(bootstrap.user_id(), &bootstrap.app_state.user_collection)
+                .await
+                .unwrap_err();
+
+        assert_matches!(
+            error,
+            Error::Unauthorized(UnauthorizedType::InvalidAccessToken)
+        );
+    }
+
+    #[tokio::test]
+    pub async fn test_refresh_token() {
+        let bootstrap = bootstrap().await;
+
+        let token = bootstrap.user_token();
+
+        let (mut parts, _) = axum::http::request::Request::get("http://localhost")
+            .header("Cookie", format!("refresh_token=Bearer {}", token))
+            .body(())
+            .unwrap()
+            .into_parts();
+
+        let user = super::RefreshToken::from_request_parts(&mut parts, &bootstrap.app_state)
+            .await
+            .unwrap();
+
+        assert_eq!(user.0, format!("Bearer {}", token));
+    }
+
+    #[tokio::test]
+    pub async fn test_refresh_token_invalid() {
+        let bootstrap = bootstrap().await;
+
+        let token = bootstrap.user_token();
+
+        let (mut parts, _) = axum::http::request::Request::get("http://localhost")
+            // .header("Cookie", format!("refresh_token=Bearer {}", token))
+            .body(())
+            .unwrap()
+            .into_parts();
+
+        let error = super::RefreshToken::from_request_parts(&mut parts, &bootstrap.app_state)
+            .await
+            .unwrap_err();
+
+        assert_matches!(
+            error,
+            Error::Unauthorized(UnauthorizedType::InvalidRefreshToken)
+        );
+    }
+
+    #[tokio::test]
+    pub async fn test_refresh_claim() {
+        let bootstrap = bootstrap().await;
+
+        let refresh_token = bootstrap.user_refresh_token().await;
+
+        let (mut parts, _) = axum::http::request::Request::get("http://localhost")
+            .header("Cookie", format!("refresh_token={}", refresh_token))
+            .body(())
+            .unwrap()
+            .into_parts();
+
+        let user = super::RefreshClaim::from_request_parts(&mut parts, &bootstrap.app_state)
+            .await
+            .unwrap();
+
+        assert_eq!(bootstrap.user_id(), user.0.user_id.0);
+    }
 }
