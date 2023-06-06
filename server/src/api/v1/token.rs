@@ -224,6 +224,7 @@ mod tests {
 
         let user_model = UserModel {
             id: ObjectId::new(),
+            name: "".to_string(),
             email: "".to_string(),
             password: "".to_string(),
             role: Default::default(),
@@ -261,6 +262,7 @@ mod tests {
 
         let user_model = UserModel {
             id: ObjectId::new(),
+            name: "".to_string(),
             email: "".to_string(),
             password: "".to_string(),
             role: Default::default(),

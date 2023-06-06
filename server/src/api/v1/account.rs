@@ -55,6 +55,8 @@ pub async fn show(
 
 #[derive(Validate, Serialize, Deserialize, Debug, Clone)]
 pub struct AccountRequest {
+    pub name: String,
+
     #[validate(email)]
     pub email: String,
 
@@ -87,6 +89,7 @@ pub async fn create(
         accounts,
         argon,
         super::auth::CreateUserRequest {
+            name: request.name,
             email: request.email,
             password: request.password,
             confirm_password: request.confirm_password,
@@ -108,6 +111,9 @@ pub struct InsertResponse {
 
 #[derive(Validate, Serialize, Deserialize)]
 pub struct UpdateRequest {
+    #[validate(length(min = 1, max = 124))]
+    pub name: Option<String>,
+
     #[validate(email)]
     pub email: Option<String>,
 
@@ -165,6 +171,7 @@ pub async fn update(
 
     let account = UserModel {
         id: account.id,
+        name: request.name.unwrap_or(account.name),
         email: request.email.unwrap_or(account.email),
         password: request
             .password
@@ -235,6 +242,7 @@ mod tests {
             bootstrap.argon(),
             bootstrap.user_access(),
             Json(super::AccountRequest {
+                name: "test".to_string(),
                 email: "email@test.com".to_string(),
                 password: "password".to_string(),
                 confirm_password: "password".to_string(),
@@ -263,6 +271,7 @@ mod tests {
             bootstrap.argon(),
             bootstrap.user_access(),
             Json(super::AccountRequest {
+                name: "test".to_string(),
                 email: "email@test.com".to_string(),
                 password: "password".to_string(),
                 confirm_password: "password".to_string(),
@@ -279,6 +288,7 @@ mod tests {
             bootstrap.argon(),
             Path(it.id.to_string()),
             Json(super::UpdateRequest {
+                name: "test".to_string().into(),
                 email: "email@test.com".to_string().into(),
                 password: "updatepasssword".to_string().into(),
                 _confirm_password: "updatepasssword".to_string().into(),
@@ -295,6 +305,7 @@ mod tests {
             bootstrap.argon(),
             Path(it.id.to_string()),
             Json(super::UpdateRequest {
+                name: "test".to_string().into(),
                 email: "updateemail@test.com".to_string().into(),
                 password: "updatepasssword".to_string().into(),
                 _confirm_password: "updatepasssword".to_string().into(),
@@ -311,6 +322,7 @@ mod tests {
             bootstrap.argon(),
             Path(it.id.to_string()),
             Json(super::UpdateRequest {
+                name: "test".to_string().into(),
                 email: bootstrap.user_email().into(),
                 password: "updatepasssword".to_string().into(),
                 _confirm_password: "updatepasssword".to_string().into(),
@@ -333,6 +345,7 @@ mod tests {
             bootstrap.argon(),
             bootstrap.user_access(),
             Json(super::AccountRequest {
+                name: "test".to_string(),
                 email: "email@test.com".to_string(),
                 password: "password".to_string(),
                 confirm_password: "password".to_string(),
@@ -373,6 +386,7 @@ mod tests {
             bootstrap.argon(),
             Path(id.to_string()),
             Json(super::UpdateRequest {
+                name: "test".to_string().into(),
                 email: bootstrap.user_email().into(),
                 password: "updatepasssword".to_string().into(),
                 _confirm_password: "updatepasssword".to_string().into(),
@@ -399,13 +413,19 @@ mod tests {
         let bootstrap = bootstrap().await;
         let id = ObjectId::new();
 
-        for (i, role) in [UserRole::Customer, UserRole::Courier].into_iter().enumerate() {
-            let bootstrap = bootstrap.derive(&format!("user{i}@test.com"), "password", role).await;
+        for (i, role) in [UserRole::Customer, UserRole::Courier]
+            .into_iter()
+            .enumerate()
+        {
+            let bootstrap = bootstrap
+                .derive(&format!("user{i}@test.com"), "password", role)
+                .await;
             let error = super::create(
                 bootstrap.user_collection(),
                 bootstrap.argon(),
                 bootstrap.user_access(),
                 Json(super::AccountRequest {
+                    name: "test".to_string(),
                     email: "email@test.com".to_string(),
                     password: "password".to_string(),
                     confirm_password: "password".to_string(),
@@ -423,6 +443,7 @@ mod tests {
                 bootstrap.argon(),
                 Path(id.to_string()),
                 Json(super::UpdateRequest {
+                    name: "test".to_string().into(),
                     email: bootstrap.user_email().into(),
                     password: "updatepasssword".to_string().into(),
                     _confirm_password: "updatepasssword".to_string().into(),

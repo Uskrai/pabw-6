@@ -39,6 +39,7 @@ pub struct UserModel {
     #[serde(rename = "_id")]
     pub id: ObjectId,
 
+    pub name: String,
     pub email: String,
     pub password: String,
     pub role: UserRole,
@@ -184,6 +185,9 @@ where
 
 #[derive(Validate, Serialize, Deserialize, Debug, Clone)]
 pub struct RegisterRequest {
+    #[validate(length(min = 1, max = 124))]
+    pub name: String,
+
     #[validate(email)]
     pub email: String,
 
@@ -197,6 +201,8 @@ pub struct RegisterRequest {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RegisterResponse {
     pub id: ObjectIdString,
+
+    pub name: String,
     pub email: String,
     pub role: UserRole,
 
@@ -210,6 +216,7 @@ impl From<UserModel> for RegisterResponse {
     fn from(value: UserModel) -> Self {
         Self {
             id: value.id.into(),
+            name: value.name,
             email: value.email,
             role: value.role,
 
@@ -223,6 +230,9 @@ impl From<UserModel> for RegisterResponse {
 
 #[derive(Validate)]
 pub struct CreateUserRequest {
+    #[validate(length(min = 1, max = 124))]
+    pub name: String,
+
     #[validate(email)]
     pub email: String,
 
@@ -258,6 +268,7 @@ pub async fn create_user(
 
     let model = UserModel {
         id: ObjectId::new(),
+        name: request.name,
         email: request.email,
         password: hash_password(&argon, &request.password)?,
         role: request.role,
@@ -279,6 +290,7 @@ pub async fn register(
         users,
         argon,
         CreateUserRequest {
+            name: request.name,
             email: request.email,
             password: request.password,
             confirm_password: request.confirm_password,
@@ -424,6 +436,7 @@ mod test {
             bootstrap.user_collection(),
             bootstrap.argon(),
             Json(super::RegisterRequest {
+                name: "name".to_string(),
                 email: "email@gmail.com".to_string(),
                 password: "password".to_string(),
                 confirm_password: "password".to_string(),
@@ -441,6 +454,7 @@ mod test {
             bootstrap.user_collection(),
             bootstrap.argon(),
             Json(super::RegisterRequest {
+                name: "name".to_string(),
                 email: "email@test.com".to_string(),
                 password: "password".to_string(),
                 confirm_password: "password".to_string(),
@@ -519,6 +533,7 @@ mod test {
             bootstrap.user_collection(),
             bootstrap.argon(),
             Json(super::RegisterRequest {
+                name: "name".to_string(),
                 email: "email@test.com".to_string(),
                 password: "password".to_string(),
                 confirm_password: "password".to_string(),
@@ -628,6 +643,7 @@ mod test {
             bootstrap.user_collection(),
             bootstrap.argon(),
             Json(super::RegisterRequest {
+                name: "name".to_string(),
                 email: "email@gmail.com".to_string(),
                 password: "password".to_string(),
                 confirm_password: "password".to_string(),
@@ -640,6 +656,7 @@ mod test {
             bootstrap.user_collection(),
             bootstrap.argon(),
             Json(super::RegisterRequest {
+                name: "name".to_string(),
                 email: "email@gmail.com".to_string(),
                 password: "password".to_string(),
                 confirm_password: "password".to_string(),

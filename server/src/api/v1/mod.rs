@@ -19,13 +19,14 @@ pub mod tests {
     use num_bigint::BigInt;
     use rust_decimal::Decimal;
 
-    use crate::app::AppState;
+    use crate::{app::AppState, util::BigIntString};
 
     use super::{
         auth::{UserAccess, UserCollection, UserRole},
         cart::CartCollection,
         product::ProductCollection,
         token::{JwtState, RefreshTokenCollection},
+        transaction::TransactionCollection,
     };
 
     lazy_static::lazy_static! {
@@ -107,6 +108,15 @@ pub mod tests {
             self.user_model.id
         }
 
+        pub async fn reload(mut self) -> Self {
+            self.user_model =
+                super::auth::UserModel::from_id(self.user_id(), &self.app_state.user_collection)
+                    .await
+                    .unwrap();
+
+            self
+        }
+
         // pub async fn user_model(&self) -> crate::entity::user::Model {
         //     self.user_model.clone()
         // }
@@ -132,12 +142,38 @@ pub mod tests {
             }
         }
 
+        pub async fn with_balance(mut self, balance: Decimal) -> Self {
+            self.app_state
+                .user_collection
+                .update_one(
+                    bson::doc! {
+                        "_id": self.user_id()
+                    },
+                    bson::doc! {
+                        "$set": {
+                            "balance": bson::to_bson(&balance).unwrap()
+                        }
+                    },
+                    None,
+                )
+                .await
+                .unwrap();
+
+            self.user_model.balance = balance;
+
+            self
+        }
+
         pub fn connection(&self) -> &Client {
             &self.app_state.mongo_client
         }
 
         pub fn product_collection(&self) -> State<ProductCollection> {
             State(self.app_state.product_collection.clone())
+        }
+
+        pub fn transaction_collection(&self) -> State<TransactionCollection> {
+            State(self.app_state.transaction_collection.clone())
         }
 
         pub fn cart_collection(&self) -> State<CartCollection> {
@@ -160,6 +196,10 @@ pub mod tests {
             State(self.app_state.jwt_state.clone())
         }
 
+        pub fn mongo_client(&self) -> State<mongodb::Client> {
+            State(self.app_state.mongo_client.clone())
+        }
+
         pub async fn create_product(&self, price: i64, stock: i64) -> super::product::Product {
             use super::product::*;
 
@@ -178,6 +218,39 @@ pub mod tests {
 
             product
         }
+
+        pub async fn create_transaction(
+            &self,
+            from: &Self,
+            product: i64,
+        ) -> super::transaction::TransactionModel {
+            assert!(
+                self.user_model.balance >= Decimal::from(product * 1_000),
+                "make sure to set balance first before calling create_transaction"
+            );
+            let mut products = vec![];
+
+            for it in 0..product {
+                let p = from.create_product(1_000, 1).await;
+                products.push(super::transaction::ProductOrderRequest {
+                    product_id: p.id,
+                    quantity: BigIntString(1.into()),
+                });
+            }
+
+            let Json(transaction) = super::transaction::insert_order(
+                self.transaction_collection(),
+                self.product_collection(),
+                self.user_collection(),
+                self.mongo_client(),
+                self.user_model.clone(),
+                Json(super::transaction::InsertOrderRequest { products }),
+            )
+            .await
+            .unwrap();
+
+            transaction
+        }
     }
 
     pub async fn create_user(
@@ -193,6 +266,7 @@ pub mod tests {
             app.user_collection.clone(),
             app.argon.clone(),
             super::auth::CreateUserRequest {
+                name: email.to_string(),
                 email: email.to_string(),
                 password: password.to_string(),
                 confirm_password: password.to_string(),

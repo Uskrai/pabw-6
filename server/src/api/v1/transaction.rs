@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use axum::{extract::State, Json, http::StatusCode};
+use axum::{extract::State, http::StatusCode, Json};
 use bson::oid::ObjectId;
 use num_bigint::BigInt;
 use rust_decimal::Decimal;
@@ -40,7 +40,7 @@ pub struct ProductTransaction {
     pub quantity: BigInt,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "type", content = "content")]
 pub enum TransactionStatusType {
     WaitingForMerchantConfirmation,
@@ -68,7 +68,7 @@ impl TransactionStatus {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TransactionModel {
     pub id: ObjectIdString,
     pub user_id: ObjectIdString,
@@ -81,7 +81,7 @@ pub struct TransactionModel {
     pub updated_at: FormattedDateTime,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TransactionStatusModel {
     pub r#type: TransactionStatusType,
     date: FormattedDateTime,
@@ -96,7 +96,7 @@ impl From<TransactionStatus> for TransactionStatusModel {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ProductTransactionModel {
     pub id: ObjectIdString,
     pub quantity: BigIntString,
@@ -185,8 +185,8 @@ pub async fn show_order(
 }
 
 #[derive(Serialize, Deserialize, Validate)]
-pub struct InsertOrderRequet {
-    products: Vec<ProductOrderRequest>,
+pub struct InsertOrderRequest {
+    pub products: Vec<ProductOrderRequest>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -201,7 +201,7 @@ pub async fn insert_order(
     State(users): State<UserCollection>,
     State(mongo): State<mongodb::Client>,
     user: UserModel,
-    Json(request): Json<InsertOrderRequet>,
+    Json(request): Json<InsertOrderRequest>,
 ) -> Result<Json<TransactionModel>, Error> {
     request.validate()?;
 
@@ -249,7 +249,10 @@ pub async fn insert_order(
 
     // forbidden to order product you own
     if merchant_id == user.id {
-        return Err(Error::CustomStr(StatusCode::FORBIDDEN, "You cannot buy product that you own"));
+        return Err(Error::CustomStr(
+            StatusCode::FORBIDDEN,
+            "You cannot buy product that you own",
+        ));
     }
 
     let mut products = vec![];
@@ -295,7 +298,10 @@ pub async fn insert_order(
         .find(|it| it <= &BigInt::from(0));
 
     if quantity.is_some() {
-        return Err(Error::CustomStr(StatusCode::FORBIDDEN, "Quantity must be more than 0"));
+        return Err(Error::CustomStr(
+            StatusCode::FORBIDDEN,
+            "Quantity must be more than 0",
+        ));
     }
 
     let transaction = Transaction {
@@ -317,6 +323,7 @@ pub async fn insert_order(
         .insert_one_with_session(&transaction, None, &mut session)
         .await?;
 
+    println!("{}-{} = {}", user.balance, price, user.balance - price);
     users
         .update_exists_one_by_id_with_session(
             user.id,
@@ -335,7 +342,10 @@ pub async fn insert_order(
 
         if &stock < &BigInt::from(0) {
             // TODO
-            return Err(Error::CustomStr(StatusCode::FORBIDDEN, "quantity must be less than stock"));
+            return Err(Error::CustomStr(
+                StatusCode::FORBIDDEN,
+                "quantity must be less than stock",
+            ));
         }
         products_collection
             .update_exists_one_by_id_with_session(
@@ -545,6 +555,7 @@ pub struct ChangeDeliveryRequest {
 
 pub async fn change_delivery(
     State(transactions): State<TransactionCollection>,
+    State(users): State<UserCollection>,
     user: UserAccess,
     PathObjectId(path): PathObjectId,
     Json(request): Json<ChangeDeliveryRequest>,
@@ -597,6 +608,24 @@ pub async fn change_delivery(
         }
         TransactionStatusType::ArrivedInDestination => {
             courier_id = None;
+
+            let merchant = users.find_exists_one_by_id(item.merchant_id).await?;
+
+            if let Some(merchant) = merchant {
+                users
+                    .update_one(
+                        bson::doc! {
+                            "_id": item.merchant_id,
+                        },
+                        bson::doc! {
+                            "$set": {
+                                "balance": bson::to_bson(&(merchant.balance + item.price)).unwrap()
+                            }
+                        },
+                        None,
+                    )
+                    .await?;
+            }
         }
         _ => {}
     }
@@ -656,22 +685,192 @@ pub async fn pickup(
 
 #[cfg(test)]
 mod tests {
-    #[tokio::test]
-    pub async fn test() {
-        let it = super::super::tests::bootstrap().await;
+    use assert_matches::assert_matches;
+    use axum::Json;
+    use num_bigint::BigInt;
+    use rust_decimal::Decimal;
 
-        // let session = super::auth::login(
-        //     state(app.user_collection.clone()),
-        //     state(app.token_collection.clone()),
-        //     state(app.jwt_state.clone()),
-        //     state(app.argon.clone()),
-        //     json(super::auth::loginrequest {
-        //         email: email.to_string(),
-        //         password: ,
-        //     })
-        // );
-        // let user = crate::entity::user::model::from_session(app, session.clone())
-        //     .await
-        //     .unwrap();
+    use crate::{api::v1::auth::UserRole, error::Error};
+
+    use super::super::tests::bootstrap;
+
+    #[tokio::test]
+    pub async fn test_can_order() {
+        let bootstrap = bootstrap().await;
+
+        let first_product = bootstrap.create_product(1000, 1).await;
+        let second_product = bootstrap.create_product(1000, 1).await;
+
+        let customer = bootstrap
+            .derive("customer@mail.com", "password", UserRole::Customer)
+            .await
+            .with_balance(Decimal::from(2_000))
+            .await;
+
+        let _ = super::insert_order(
+            bootstrap.transaction_collection(),
+            bootstrap.product_collection(),
+            bootstrap.user_collection(),
+            bootstrap.mongo_client(),
+            customer.user_model.clone(),
+            Json(super::InsertOrderRequest {
+                products: vec![
+                    super::ProductOrderRequest {
+                        product_id: first_product.id,
+                        quantity: BigInt::from(1).into(),
+                    },
+                    super::ProductOrderRequest {
+                        product_id: second_product.id,
+                        quantity: BigInt::from(1).into(),
+                    },
+                ],
+            }),
+        )
+        .await
+        .unwrap();
+
+        let customer = customer.reload().await;
+        assert_eq!(customer.user_model.balance, Decimal::from(0));
+    }
+
+    #[tokio::test]
+    pub async fn test_cannot_order_same_user() {
+        let bootstrap = bootstrap().await;
+
+        let first_product = bootstrap.create_product(1000, 1000).await;
+
+        let err = super::insert_order(
+            bootstrap.transaction_collection(),
+            bootstrap.product_collection(),
+            bootstrap.user_collection(),
+            bootstrap.mongo_client(),
+            bootstrap.user_model.clone(),
+            Json(super::InsertOrderRequest {
+                products: vec![super::ProductOrderRequest {
+                    product_id: first_product.id,
+                    quantity: BigInt::from(1).into(),
+                }],
+            }),
+        )
+        .await
+        .expect_err("cannot buy from same user");
+        assert_matches!(
+            err,
+            Error::CustomStr(_, "You cannot buy product that you own")
+        );
+    }
+
+    #[tokio::test]
+    pub async fn test_cannot_order_when_balance_insufficient() {
+        let bootstrap = bootstrap().await;
+
+        let first_product = bootstrap.create_product(1000, 1000).await;
+        let second_product = bootstrap.create_product(1000, 1000).await;
+
+        let customer = bootstrap
+            .derive("customer@mail.com", "password", UserRole::Customer)
+            .await
+            .with_balance(Decimal::from(1_000))
+            .await;
+
+        let error = super::insert_order(
+            bootstrap.transaction_collection(),
+            bootstrap.product_collection(),
+            bootstrap.user_collection(),
+            bootstrap.mongo_client(),
+            customer.user_model.clone(),
+            Json(super::InsertOrderRequest {
+                products: vec![
+                    super::ProductOrderRequest {
+                        product_id: first_product.id,
+                        quantity: BigInt::from(1).into(),
+                    },
+                    super::ProductOrderRequest {
+                        product_id: second_product.id,
+                        quantity: BigInt::from(1).into(),
+                    },
+                ],
+            }),
+        )
+        .await
+        .expect_err("Insufficient balance");
+        assert_matches!(error, Error::InsufficientFund);
+    }
+
+    #[tokio::test]
+    pub async fn test_cannot_order_from_multiple_user() {
+        let bootstrap = bootstrap().await;
+        let merchant = bootstrap
+            .derive("mer@mail.com", "password", UserRole::Customer)
+            .await;
+
+        let customer = bootstrap
+            .derive("cus@mail.com", "password", UserRole::Customer)
+            .await
+            .with_balance(Decimal::from(2_000))
+            .await;
+
+        let first_product = bootstrap.create_product(1000, 1000).await;
+        let second_product = merchant.create_product(1000, 1000).await;
+
+        let err = super::insert_order(
+            bootstrap.transaction_collection(),
+            bootstrap.product_collection(),
+            bootstrap.user_collection(),
+            bootstrap.mongo_client(),
+            customer.user_model.clone(),
+            Json(super::InsertOrderRequest {
+                products: vec![
+                    super::ProductOrderRequest {
+                        product_id: first_product.id,
+                        quantity: BigInt::from(1).into(),
+                    },
+                    super::ProductOrderRequest {
+                        product_id: second_product.id,
+                        quantity: BigInt::from(1).into(),
+                    },
+                ],
+            }),
+        )
+        .await
+        .expect_err("cannot buy from multiple user");
+        assert_matches!(err, Error::MismatchMerchant);
+    }
+
+    #[tokio::test]
+    pub async fn test_cannot_order_when_stock_less_than_quantity() {
+        let bootstrap = bootstrap().await;
+
+        let customer = bootstrap
+            .derive("cus@mail.com", "password", UserRole::Customer)
+            .await
+            .with_balance(Decimal::from(20_000))
+            .await;
+
+        let first_product = bootstrap.create_product(1000, 1).await;
+        let second_product = bootstrap.create_product(1000, 1).await;
+
+        let err = super::insert_order(
+            bootstrap.transaction_collection(),
+            bootstrap.product_collection(),
+            bootstrap.user_collection(),
+            bootstrap.mongo_client(),
+            customer.user_model.clone(),
+            Json(super::InsertOrderRequest {
+                products: vec![
+                    super::ProductOrderRequest {
+                        product_id: first_product.id,
+                        quantity: BigInt::from(1).into(),
+                    },
+                    super::ProductOrderRequest {
+                        product_id: second_product.id,
+                        quantity: BigInt::from(2).into(),
+                    },
+                ],
+            }),
+        )
+        .await
+        .expect_err("stock less than quantity");
+        assert_matches!(err, Error::CustomStr(_, "quantity must be less than stock"));
     }
 }

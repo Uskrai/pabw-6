@@ -88,7 +88,7 @@ pub struct IndexResponse {
 pub async fn index(
     State(collection): State<ProductCollection>,
 ) -> Result<Json<IndexResponse>, Error> {
-    let mut cursor = collection.find(None, None).await?;
+    let mut cursor = collection.find_exists(None, None).await?;
 
     let mut products = vec![];
 
@@ -298,7 +298,8 @@ pub async fn delete(
 
     tracing::debug!("deleting product");
     products
-        .delete_one(bson::doc! {"_id": product_id}, None)
+        .soft_delete_one_by_id(product_id)
+        // .so(bson::doc! {"_id": product_id}, None)
         .await?;
 
     Ok(())
