@@ -68,10 +68,10 @@ export default function ShowProduct() {
         <>
           <CardContent>
             <Typography gutterBottom variant="h5" component="div">
-              Nama: {order.id}
+              INV: {order.id}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Customer: {merchant?.email}
+              Customer: {merchant?.name}
             </Typography>
             <Typography variant="body2" fontSize={12}>
               Harga: Rp. {order.price}

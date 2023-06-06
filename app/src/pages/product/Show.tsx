@@ -1,9 +1,12 @@
+import ShowDashboard from "@/layouts/ShowDashboard";
+import { handleError } from "@/utils/error-handler";
 import Card from "@mui/material/Card";
 import CardActions from "@mui/material/CardActions";
 import CardContent from "@mui/material/CardContent";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import axios from "axios";
+import { useConfirm } from "material-ui-confirm";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
 import { useAuth } from "../../hooks/useAuth";
@@ -18,6 +21,7 @@ export default function ShowProduct() {
   );
   const navigate = useNavigate();
   const { token } = useAuth();
+  const confirm = useConfirm();
 
   if (isLoading || data?.data == null) {
     return <CircularProgress />;
@@ -26,33 +30,38 @@ export default function ShowProduct() {
   const product = data?.data;
 
   const onDelete = async () => {
+    try {
+      await confirm({ description: "Are you sure?" });
+    } catch (e) {}
+
     await axios.delete(`/api/v1/product/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    mutate("/api/v1/product");
     navigate("/user/product");
   };
 
   return (
-    <Card sx={{ m: 2 }}>
-      <CardContent>
-        <Typography gutterBottom variant="h5" component="div">
-          Nama: {product.name}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Deskripsi: {product.description}
-        </Typography>
-        <Typography variant="body2" fontSize={12}>
-          Harga: Rp. {product.price}
-        </Typography>
-        <Typography variant="body2">Stok: {product.stock}</Typography>
-      </CardContent>
-      <CardActions>
-        <Link to={`/user/product/${product.id}/edit`}>Edit</Link>
-        <Link to={`/user/product/${product.id}`} onClick={onDelete}>
-          Delete
-        </Link>
-      </CardActions>
-    </Card>
+    <ShowDashboard title="Product" route="/user/product">
+      <Card sx={{ m: 2 }} variant="outlined">
+        <CardContent>
+          <Typography gutterBottom variant="h5" component="div">
+            Nama: {product.name}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Deskripsi: {product.description}
+          </Typography>
+          <Typography variant="body2" fontSize={12}>
+            Harga: Rp. {product.price}
+          </Typography>
+          <Typography variant="body2">Stok: {product.stock}</Typography>
+        </CardContent>
+        <CardActions>
+          <Link to={`/user/product/${product.id}/edit`}>Edit</Link>
+          <Link to={`/user/product/${product.id}`} onClick={handleError(onDelete)}>
+            Delete
+          </Link>
+        </CardActions>
+      </Card>
+    </ShowDashboard>
   );
 }

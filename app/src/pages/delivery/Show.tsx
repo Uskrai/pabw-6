@@ -13,18 +13,16 @@ import Typography from "@mui/material/Typography";
 import axios from "axios";
 import React, { useMemo } from "react";
 import { Controller, useForm, UseFormReturn } from "react-hook-form";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import useSWR from "swr";
 import { dateToString } from "../../helper";
 import { useAuth } from "../../hooks/useAuth";
 import { useAuthSWR, useMutateAuth } from "../../hooks/useSWR";
 import { Product } from "../../models/Product";
-import {
-  statusToString,
-  Transaction,
-} from "../../models/Transaction";
+import { statusToString, Transaction } from "../../models/Transaction";
 import { User } from "../../models/User";
 import { handleError } from "@/utils/error-handler";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function ShowProduct() {
   const { id } = useParams();
@@ -33,6 +31,7 @@ export default function ShowProduct() {
     data: order,
     isLoading,
     mutate: mutateNow,
+    error,
   } = useAuthSWR<Transaction>(`/api/v1/delivery/${id}`);
 
   const { data: merchant } = useAuthSWR<User>(
@@ -64,10 +63,12 @@ export default function ShowProduct() {
   );
 
   const mutateAuth = useMutateAuth();
+  const queryClient = useQueryClient();
 
   const pickUpType = pickUpForm.watch("type");
 
   const onPickUp = async (): Promise<void> => {};
+  const navigate = useNavigate();
 
   const onChangeType = async (e: any): Promise<void> => {
     // console.log(e);
@@ -81,9 +82,6 @@ export default function ShowProduct() {
           },
         }
       );
-
-      mutateNow();
-      mutateAuth("/api/v1/delivery");
     } else {
       await axios.post(
         `/api/v1/delivery/${id}/change`,
@@ -99,13 +97,22 @@ export default function ShowProduct() {
           },
         }
       );
-      mutateNow();
-      mutateAuth("/api/v1/delivery");
+    }
+
+    queryClient.invalidateQueries(["/api/v1/delivery"]);
+    queryClient.invalidateQueries([`/api/v1/delivery/${id}`]);
+    if (["ArrivedInDestination", "ArrivedInMerchant"].includes(e.type)) {
+      navigate("/courier/delivery");
     }
   };
 
   if (isLoading && order == null) {
     return <CircularProgress />;
+  }
+
+  console.log(error);
+  if (error?.response?.status == 403) {
+    return null;
   }
 
   return (

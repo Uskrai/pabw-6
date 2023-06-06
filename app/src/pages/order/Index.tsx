@@ -8,12 +8,61 @@ import Typography from "@mui/material/Typography";
 import { Outlet, useNavigate } from "react-router-dom";
 import AppBar from "../../AppBar";
 import { useAuthSWR } from "../../hooks/useSWR";
-import { GetOrder, statusToString, Transaction } from "../../models/Transaction";
+import {
+  GetOrder,
+  statusToString,
+  Transaction,
+} from "../../models/Transaction";
 import { User } from "../../models/User";
 import { Product } from "../../models/Product";
+import React from "react";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import Collapse from "@mui/material/Collapse";
+import ListItemButton from "@mui/material/ListItemButton";
 
 export default function ShowProduct() {
   const { data, isLoading } = useAuthSWR<GetOrder>("/api/v1/order");
+
+  const group = React.useMemo(() => {
+    return [
+      {
+        name: "Processing",
+        child: data?.orders?.filter((it) =>
+          ["WaitingForMerchantConfirmation", "ProcessingInMerchant"].includes(
+            it?.status?.at?.(-1)?.type?.type ?? ""
+          )
+        ),
+      },
+      {
+        name: "Delivering",
+        child: data?.orders?.filter((it) =>
+          ["WaitingForCourier", "PickedUpByCourier"].includes(
+            it?.status?.at?.(-1)?.type?.type ?? ""
+          )
+        ),
+      },
+      {
+        name: "Arrived",
+        child: data?.orders?.filter((it) =>
+          ["ArrivedInDestination"].includes(
+            it?.status?.at?.(-1)?.type?.type ?? ""
+          )
+        ),
+      },
+      {
+        name: "Delivering Back to Merchant",
+        child: data?.orders?.filter((it) =>
+          ["SendBackToMerchant", "WaitingForMerchantWhenSendBack"].includes(
+            it?.status?.at?.(-1)?.type?.type ?? ""
+          )
+        ),
+      },
+    ];
+  }, [data]);
 
   if (isLoading) {
     return <CircularProgress />;
@@ -25,11 +74,11 @@ export default function ShowProduct() {
 
       <Grid container>
         <Grid item xs>
-          {data?.orders.map((it) => (
-            <div key={it.id}>
-              <OrderCard order={it} />
-            </div>
-          ))}
+          <List>
+            {group.map((it) => (
+              <GroupList name={it.name} child={it.child ?? null} />
+            ))}
+          </List>
         </Grid>
         <Divider orientation="vertical" flexItem />
         <Grid item xs>
@@ -38,6 +87,29 @@ export default function ShowProduct() {
       </Grid>
     </div>
   );
+}
+
+function GroupList({ name, child }: { name: string; child: Transaction[] | null }) {
+  const [open, setOpen] = React.useState(false);
+  const handleClick = () => {
+    setOpen(!open);
+  };
+
+  return child?.length != undefined && child?.length > 0 ? (
+    <div>
+      <ListItemButton key={name} onClick={handleClick}>
+        <ListItemText primary={`${name} (${child?.length})`} />
+        {open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+      </ListItemButton>
+      <Collapse key={name} in={open}>
+        {child?.map((it) => (
+          <div key={it.id}>
+            <OrderCard order={it} />{" "}
+          </div>
+        ))}
+      </Collapse>
+    </div>
+  ) : null;
 }
 
 function OrderCard({ order }: { order: Transaction }) {
@@ -61,7 +133,7 @@ function OrderCard({ order }: { order: Transaction }) {
             )}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {merchant == null ? <CircularProgress /> : <>{merchant.email}</>}
+            {merchant == null ? <CircularProgress /> : <>{merchant.name}</>}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {statusToString(order.status.at(-1))}

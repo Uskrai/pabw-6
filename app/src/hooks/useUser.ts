@@ -18,7 +18,6 @@ export function useUser(): UseUser {
     data,
     error,
     mutate,
-    isValidating,
     isLoading: isSwrLoading,
   } = useAuthSWR<User>("/api/v1/auth/profile", {
     shouldRetryOnError: isLogin,
@@ -34,7 +33,7 @@ export function useUser(): UseUser {
     }
 
     setIsLoading(isSwrLoading);
-  }, [token, data, error, isValidating, isSwrLoading]);
+  }, [token, data, error, isSwrLoading]);
 
   return { user, mutate, isLoading };
 }

@@ -21,7 +21,6 @@ export default function Form({
         label={"Name"}
         defaultValue={formState.defaultValues?.name}
         sx={{ m: 2 }}
-        fullWidth
 
         error={formState.errors.name != null}
         helperText={formState.errors.name?.message}
@@ -33,7 +32,6 @@ export default function Form({
         defaultValue={formState.defaultValues?.description}
         sx={{ m: 2 }}
         multiline
-        fullWidth
       />
       <TextField
         {...register("price", {
@@ -44,7 +42,6 @@ export default function Form({
         label={"Harga"}
         defaultValue={formState.defaultValues?.price}
         sx={{ m: 2 }}
-        fullWidth
         error={formState.errors.price != null}
         helperText={formState.errors.price?.message}
       />
@@ -57,7 +54,6 @@ export default function Form({
         label="Stok"
         defaultValue={formState.defaultValues?.stock}
         sx={{ m: 2 }}
-        fullWidth
         error={formState.errors.stock != null}
         helperText={formState.errors.stock?.message}
       />

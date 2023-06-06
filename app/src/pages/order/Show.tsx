@@ -34,7 +34,7 @@ export default function ShowProduct() {
               Nama: {order.id}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Merchant: {merchant?.email}
+              Merchant: {merchant?.name}
             </Typography>
             <Typography variant="body2" fontSize={12}>
               Harga: Rp. {order.price}

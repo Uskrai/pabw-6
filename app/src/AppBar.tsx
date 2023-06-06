@@ -49,19 +49,21 @@ export default function ResponsiveAppBar() {
   };
 
   const pages = Object.entries({
+    Delivery: user?.user?.role == "Courier" ? "/courier/delivery" : null,
+    Customer: user?.user?.role == "Admin" ? "/admin/account/customer" : null,
+    Courier: user?.user?.role == "Admin" ? "/admin/account/courier" : null,
     Products: ["Admin", "Customer"].includes(user?.user?.role || "")
       ? "/user/product"
       : null,
-    Customer: user?.user?.role == "Admin" ? "/admin/account/customer" : null,
-    Courier: user?.user?.role == "Admin" ? "/admin/account/courier" : null,
     Order: ["Customer", "Admin"].includes(user?.user?.role ?? "")
       ? "/user/order"
       : null,
     Sale: ["Customer", "Admin"].includes(user?.user?.role ?? "")
       ? "/user/transaction"
       : null,
-    Cart: ["Customer"].includes(user?.user?.role ?? "") ? "/user/cart" : null,
-    Delivery: user?.user?.role == "Courier" ? "/courier/delivery" : null,
+    Cart: ["Customer", "Admin"].includes(user?.user?.role ?? "")
+      ? "/user/cart"
+      : null,
     // Accounts: user.user?.role == "Admin" ? "/admin/account" : null,
   }).filter(([_, it]) => it != null);
 
@@ -81,23 +83,23 @@ export default function ResponsiveAppBar() {
       <Container maxWidth="xl">
         <Toolbar disableGutters>
           <AdbIcon sx={{ display: { xs: "none", md: "flex" }, mr: 1 }} />
-          <Typography
-            variant="h6"
-            noWrap
-            component="a"
-            href="/"
-            sx={{
-              mr: 2,
-              display: { xs: "none", md: "flex" },
-              fontFamily: "monospace",
-              fontWeight: 700,
-              letterSpacing: ".3rem",
-              color: "inherit",
-              textDecoration: "none",
-            }}
-          >
-            LOGO
-          </Typography>
+          <NavLink to="/">
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{
+                mr: 2,
+                display: { xs: "none", md: "flex" },
+                fontFamily: "monospace",
+                fontWeight: 700,
+                letterSpacing: ".3rem",
+                color: "white",
+                textDecoration: "none",
+              }}
+            >
+              LOGO
+            </Typography>
+          </NavLink>
 
           <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
             <IconButton
@@ -175,7 +177,7 @@ export default function ResponsiveAppBar() {
           <Box sx={{ flexGrow: 0 }}>
             {user.isLoading ? (
               <>
-                <CircularProgress />
+                <CircularProgress sx={{ color: "white" }} />
               </>
             ) : settings ? (
               <>
@@ -213,7 +215,9 @@ export default function ResponsiveAppBar() {
               </>
             ) : (
               <NavLink to="/login">
-                <Typography textAlign="center">Login</Typography>
+                <Typography textAlign="center" sx={{ color: "white" }}>
+                  Login
+                </Typography>
               </NavLink>
             )}
           </Box>

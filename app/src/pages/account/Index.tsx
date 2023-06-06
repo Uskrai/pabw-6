@@ -6,11 +6,18 @@ import CardContent from "@mui/material/CardContent";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import MenuItem from "@mui/material/MenuItem";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import EditIcon from "@mui/icons-material/Edit";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuthSWR } from "../../hooks/useSWR";
 import { useUser } from "../../hooks/useUser";
 import { User } from "../../models/User";
 import { CircularProgress } from "@mui/material";
+import MaterialReactTable, { MRT_ColumnDef } from "material-react-table";
+import { currencyFormatter } from "@/utils/formatter";
+import TableDashboard from "@/layouts/TableDashboard";
 
 const AppBar = React.lazy(() => import("../../AppBar"));
 
@@ -30,56 +37,86 @@ export default function Index(props: Props) {
     [data?.accounts, props.role]
   );
 
-  return (
-    <div>
-      <AppBar />
-
-      <Grid container>
-        <Grid item xs>
-          {!isLoading ? (
-            <>
-              <Link to={`/admin/account/${props.role.toLowerCase()}/create`}>
-                New
-              </Link>
-              {accounts?.map((it) => (
-                <div key={it.id}>
-                  <ItemCard user={it} role={props.role} />
-                </div>
-              ))}
-            </>
-          ) : (
-            <CircularProgress />
-          )}
-        </Grid>
-
-        <Divider orientation="vertical" flexItem />
-        <Grid item xs>
-          <Outlet />
-        </Grid>
-      </Grid>
-    </div>
-  );
-}
-
-function ItemCard({ user, role }: { user: User; role: string }) {
   const navigate = useNavigate();
+
+  const dataColumns = [
+    {
+      accessorKey: "name",
+      header: "Nama",
+    },
+    {
+      accessorKey: "email",
+      header: "E-Mail",
+    },
+    {
+      accessorKey: "role",
+      header: "Role",
+    },
+    {
+      header: "Balance",
+      accessorFn: (row) => currencyFormatter.format(parseInt(row.balance)),
+    },
+  ] as MRT_ColumnDef<User>[];
+
   return (
-    <Card>
-      <CardActionArea
-        onClick={() =>
-          navigate(`/admin/account/${role.toLowerCase()}/${user.id}`)
-        }
-      >
-        <CardContent>
-          <Typography gutterBottom variant="h5" component="div">
-            {user.email}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {user.role}
-          </Typography>
-        </CardContent>
-      </CardActionArea>
-    </Card>
+    <TableDashboard
+      title={props.role}
+      route={`/admin/account/${props.role.toLowerCase()}`}
+    >
+      <MaterialReactTable
+        columns={dataColumns}
+        data={accounts ?? []}
+        enableColumnActions={true}
+        enableColumnFilters={true}
+        enablePagination={true}
+        enableSorting={true}
+        enableBottomToolbar={true}
+        enableRowActions
+        enableTopToolbar={true}
+        enableRowNumbers={true}
+        muiTableBodyRowProps={{ hover: false }}
+        renderRowActions={({ row }) => {
+          return (
+            <Box>
+              <NavLink
+                to={`/admin/account/${props.role.toLowerCase()}/${
+                  row.original.id
+                }/edit`}
+              >
+                <IconButton>
+                  <EditIcon />
+                </IconButton>
+              </NavLink>
+            </Box>
+          );
+        }}
+        state={{
+          isLoading,
+        }}
+      />
+      {/* <Grid container> */}
+      {/*   <Grid item xs> */}
+      {/*     {!isLoading ? ( */}
+      {/*       <> */}
+      {/*         <Link to={`/admin/account/${props.role.toLowerCase()}/create`}> */}
+      {/*           New */}
+      {/*         </Link> */}
+      {/*         {accounts?.map((it) => ( */}
+      {/*           <div key={it.id}> */}
+      {/*             <ItemCard user={it} role={props.role} /> */}
+      {/*           </div> */}
+      {/*         ))} */}
+      {/*       </> */}
+      {/*     ) : ( */}
+      {/*       <CircularProgress /> */}
+      {/*     )} */}
+      {/*   </Grid> */}
+      {/**/}
+      {/*   <Divider orientation="vertical" flexItem /> */}
+      {/*   <Grid item xs> */}
+      {/*     <Outlet /> */}
+      {/*   </Grid> */}
+      {/* </Grid> */}
+    </TableDashboard>
   );
-  //
 }

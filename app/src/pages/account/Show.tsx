@@ -1,3 +1,4 @@
+import ShowDashboard from "@/layouts/ShowDashboard";
 import { currencyFormatter } from "@/utils/formatter";
 import Card from "@mui/material/Card";
 import CardActions from "@mui/material/CardActions";
@@ -41,10 +42,14 @@ export default function Show(props: Props) {
   };
 
   return (
+    <ShowDashboard title="Account" route={`/admin/account/${props.role.toLowerCase()}`}>
     <Card sx={{ m: 2 }}>
       <CardContent>
         <Typography gutterBottom variant="h5" component="div">
-          Nama: {user.email}
+          Nama: {user.name}
+        </Typography>
+        <Typography gutterBottom variant="body2" component="div">
+          E-Mail: {user.email}
         </Typography>
         {/* <Typography variant="body2" color="text.secondary"> */}
         {/*   Deskripsi: {product.description} */}
@@ -62,13 +67,14 @@ export default function Show(props: Props) {
         <Link to={`/admin/account/${props.role.toLowerCase()}/${user.id}/edit`}>
           Edit
         </Link>
-        <Link
-          to={`/admin/account/${props.role.toLowerCase()}/${user.id}`}
-          onClick={onDelete}
-        >
-          Delete
-        </Link>
+        {/* <Link */}
+        {/*   to={`/admin/account/${props.role.toLowerCase()}/${user.id}`} */}
+        {/*   onClick={onDelete} */}
+        {/* > */}
+        {/*   Delete */}
+        {/* </Link> */}
       </CardActions>
     </Card>
+    </ShowDashboard>
   );
 }

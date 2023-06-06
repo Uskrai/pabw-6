@@ -1,3 +1,4 @@
+import FormDashboard from "@/layouts/FormDashboard";
 import CircularProgress from "@mui/material/CircularProgress";
 import axios from "axios";
 import React from "react";
@@ -39,6 +40,7 @@ export default function EditProduct() {
   }
 
   return (
+    <FormDashboard title="Edit Product">
     <Form
       form={form}
       onClick={async (e) => {
@@ -53,5 +55,6 @@ export default function EditProduct() {
           navigate(`/user/product/${product.id}`);
       }}
     />
+    </FormDashboard>
   );
 }

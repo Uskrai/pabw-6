@@ -1,4 +1,6 @@
 import Card from "@mui/material/Card";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Grid from "@mui/material/Grid";
 import CardActionArea from "@mui/material/CardActionArea";
 import Divider from "@mui/material/Divider";
@@ -9,20 +11,57 @@ import { Outlet, useNavigate } from "react-router-dom";
 import AppBar from "../../AppBar";
 import { useAuthSWR } from "../../hooks/useSWR";
 import {
-  GetOrder,
   GetTransaction,
   statusToString,
   Transaction,
 } from "../../models/Transaction";
 import { User } from "../../models/User";
 import { Product } from "../../models/Product";
-import AppDashboard from "@/layouts/AppDashboard";
-import MaterialReactTable, { MRT_ColumnDef } from "material-react-table";
-import TableDashboard from "@/layouts/TableDashboard";
+import React from "react";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemText from "@mui/material/ListItemText";
+import Collapse from "@mui/material/Collapse";
+import List from "@mui/material/List";
 
 export default function Index() {
   const { data, isLoading } = useAuthSWR<GetTransaction>("/api/v1/transaction");
 
+  const group = React.useMemo(() => {
+    return [
+      {
+        name: "Processing",
+        child: data?.transactions?.filter((it) =>
+          ["WaitingForMerchantConfirmation", "ProcessingInMerchant"].includes(
+            it?.status?.at?.(-1)?.type?.type ?? ""
+          )
+        ),
+      },
+      {
+        name: "Delivering",
+        child: data?.transactions?.filter((it) =>
+          ["WaitingForCourier", "PickedUpByCourier"].includes(
+            it?.status?.at?.(-1)?.type?.type ?? ""
+          )
+        ),
+      },
+      {
+        name: "Arrived",
+        child: data?.transactions?.filter((it) =>
+          ["ArrivedInDestination"].includes(
+            it?.status?.at?.(-1)?.type?.type ?? ""
+          )
+        ),
+      },
+      {
+        name: "Delivering Back to Merchant",
+        child: data?.transactions?.filter((it) =>
+          ["SendBackToMerchant", "WaitingForMerchantWhenSendBack"].includes(
+            it?.status?.at?.(-1)?.type?.type ?? ""
+          )
+        ),
+      },
+    ];
+  }, [data]);
 
   if (isLoading) {
     return <CircularProgress />;
@@ -34,11 +73,11 @@ export default function Index() {
 
       <Grid container>
         <Grid item xs>
-          {data?.transactions.map((it) => (
-            <div key={it.id}>
-              <OrderCard order={it} />
-            </div>
-          ))}
+          <List>
+            {group.map((it) => (
+              <GroupList key={it.name} name={it.name} child={it.child ?? null} />
+            ))}
+          </List>
         </Grid>
         <Divider orientation="vertical" flexItem />
         <Grid item xs>
@@ -49,71 +88,34 @@ export default function Index() {
   );
 }
 
-// export default function Index() {
-//
-//   const { data, isLoading } = useAuthSWR<GetTransaction>("/api/v1/transaction");
-//
-//   const dataColumns = [
-//     {
-//       accessorKey: "name",
-//       header: "Nama",
-//     },
-//     {
-//       accessorKey: "address",
-//       header: "Alamat",
-//     },
-//     {
-//       accessorKey: "email",
-//       header: "E-Mail",
-//     },
-//   ] as MRT_ColumnDef<Transaction>[];
-//
-//   if (isLoading) {
-//     return <CircularProgress />;
-//   }
-//
-//   return (
-//     <TableDashboard title="Akun" route="/admin/account">
-//       <MaterialReactTable
-//         columns={dataColumns}
-//         data={data?.transactions || []}
-//         enableColumnActions={true}
-//         enableColumnFilters={true}
-//         enablePagination={true}
-//         enableSorting={true}
-//         enableBottomToolbar={true}
-//         enableRowActions={true}
-//         enableTopToolbar={true}
-//         enableRowNumbers={true}
-//         muiTableBodyRowProps={{ hover: false }}
-//         // renderRowActions={({ row }) => (
-//         //   <MenuItem>
-//         //     <div className="flex items-center justify-center gap-2">
-//         //       <Link
-//         //         className="bg-yellow-600 rounded p-2 flex-1 focus:outline-none border-2 border-orange-400 text-white"
-//         //         href={`/admin/account/${row.original.id}/edit`}
-//         //       >
-//         //         <Edit className="" />
-//         //       </Link>
-//         //       <Link
-//         //         className="bg-red-600 rounded p-2 flex-1 focus:outline-none border-2 border-red-400 text-white"
-//         //         href={`/admin/account/${row.original.id}`}
-//         //         onClick={() => {
-//         //           //
-//         //         }}
-//         //       >
-//         //         <Delete className="" />
-//         //       </Link>
-//         //     </div>
-//         //   </MenuItem>
-//         // )}
-//         state={{
-//           isLoading: isLoading && data == null,
-//         }}
-//       />
-//     </TableDashboard>
-//   );
-// }
+function GroupList({
+  name,
+  child,
+}: {
+  name: string;
+  child: Transaction[] | null;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const handleClick = () => {
+    setOpen(!open);
+  };
+
+  return child?.length != undefined && child?.length > 0 ? (
+    <div >
+      <ListItemButton onClick={handleClick}>
+        <ListItemText primary={`${name} (${child?.length})`} />
+        {open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+      </ListItemButton>
+      <Collapse key={name} in={open}>
+        {child?.map((it) => (
+          <div key={it.id}>
+            <OrderCard order={it} />{" "}
+          </div>
+        ))}
+      </Collapse>
+    </div>
+  ) : null;
+}
 
 function OrderCard({ order }: { order: Transaction }) {
   const navigate = useNavigate();
@@ -136,7 +138,7 @@ function OrderCard({ order }: { order: Transaction }) {
             )}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {merchant == null ? <CircularProgress /> : <>{merchant.email}</>}
+            {merchant == null ? <CircularProgress /> : <>{merchant.name}</>}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {statusToString(order.status.at(-1))}

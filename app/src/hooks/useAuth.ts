@@ -1,17 +1,19 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import React from "react";
 import useSWR, { KeyedMutator } from "swr";
 import { AuthContext } from "../context/User";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface Auth {
   token: string | null;
+  error: AxiosError | null;
   login: (token: string) => void;
   logout: () => void;
 
   isLoading: boolean;
   isLogin: boolean;
 
-  mutate: KeyedMutator<any>;
+  mutate: () => Promise<void>;
 }
 
 export function useAuth(): Auth {
@@ -25,36 +27,43 @@ export function useProvidedAuth(): Auth {
   );
   const [isLoading, setIsLoading] = React.useState(true);
 
+  const queryClient = useQueryClient();
+  const mutate = React.useMemo(
+    () => () => queryClient.invalidateQueries(["user", "refresh"]),
+    [queryClient]
+  );
   const {
     data,
     error,
     isLoading: isSwrLoading,
-    mutate,
-  } = useSWR(
-    "/api/v1/auth/refresh",
-    async (url) => {
+  } = useQuery<any, AxiosError>({
+    queryKey: ["user", "refresh"],
+    queryFn: async () => {
+      const url = "/api/v1/auth/refresh";
       console.log("calling", url);
       return await axios.post(url).then((it) => it.data);
     },
-    {
-      revalidateOnMount: true,
-      revalidateOnFocus: true,
-      revalidateIfStale: false,
-      revalidateOnReconnect: false,
-    }
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: false,
+    retry: 1,
+    enabled: isLogin,
+  });
+
+  const login = React.useCallback(
+    (access_token: string) => {
+      localStorage.setItem("isLogin", JSON.stringify(true));
+      setToken(access_token);
+      setIsLogin(true);
+    },
+    [isLogin]
   );
 
-  function login(access_token: string) {
-    localStorage.setItem("isLogin", JSON.stringify(true));
-    setToken(access_token);
-    setIsLogin(true);
-  }
-
-  function logout() {
+  const logout = React.useCallback(() => {
     localStorage.removeItem("isLogin");
     setToken(null);
     setIsLogin(false);
-  }
+  }, [isLogin]);
 
   React.useEffect(() => {
     if (data) {
@@ -66,9 +75,9 @@ export function useProvidedAuth(): Auth {
       logout();
     }
 
-    // console.log(data, error);
-    setIsLoading(isSwrLoading);
+    console.log({ isSwrLoading, isLogin, error });
+    setIsLoading(isSwrLoading && isLogin);
   }, [data, error, isSwrLoading]);
 
-  return { token, isLogin, isLoading, login, logout, mutate };
+  return { token, isLogin, isLoading, login, logout, mutate, error };
 }

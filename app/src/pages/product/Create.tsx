@@ -1,3 +1,4 @@
+import FormDashboard from "@/layouts/FormDashboard";
 import axios from "axios";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -13,6 +14,8 @@ export default function CreateProduct() {
   const navigate = useNavigate();
 
   return (
+    <FormDashboard title={"Create Product"}>
+
     <Form
       form={form}
       onClick={async (e) => {
@@ -24,5 +27,6 @@ export default function CreateProduct() {
         navigate(`/user/product/${res.data.id}`);
       }}
     />
+    </FormDashboard>
   );
 }

@@ -9,12 +9,12 @@ import axios from "axios";
 import React from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import useSWR, { mutate } from "swr";
 import AppBar from "./AppBar";
 import { useAuth } from "./hooks/useAuth";
 import { useUser } from "./hooks/useUser";
 import { Product } from "./models/Product";
 import { handleError } from "./utils/error-handler";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface BuyForm {
   quantity: string;
@@ -23,9 +23,16 @@ interface BuyForm {
 export default function ShowProduct() {
   const { product_id } = useParams();
 
-  const { data, isLoading, mutate } = useSWR<{ data: Product }>(
-    `/api/v1/product/${product_id}`,
-    (url) => axios.get(url)
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery<{ data: Product }>({
+    queryKey: [`/api/v1/product/${product_id}`],
+  });
+  const mutate = React.useCallback(
+    () =>
+      queryClient.invalidateQueries({
+        queryKey: [`/api/v1/product/${product_id}`],
+      }),
+    [product_id]
   );
   const navigate = useNavigate();
 
@@ -85,7 +92,6 @@ export default function ShowProduct() {
     mutate();
   }
 
-  console.log(form.formState.errors.quantity?.message);
   return (
     <div className="App">
       <AppBar />

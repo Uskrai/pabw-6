@@ -1,3 +1,4 @@
+import FormDashboard from "@/layouts/FormDashboard";
 import axios from "axios";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -21,6 +22,7 @@ export default function CreateProduct(props: Props) {
   const navigate = useNavigate();
 
   return (
+    <FormDashboard title={`Create ${props.role}`}>
     <Form
       form={form}
       withPassword={true}
@@ -33,5 +35,6 @@ export default function CreateProduct(props: Props) {
         navigate(`/admin/account/${e.role}/${res.data.id}`);
       }}
     />
+    </FormDashboard >
   );
 }

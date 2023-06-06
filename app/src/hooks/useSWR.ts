@@ -1,4 +1,5 @@
-import axios from "axios";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import axios, { AxiosError, AxiosResponse } from "axios";
 import React from "react";
 import useSWR from "swr";
 import { mutate } from "swr";
@@ -46,29 +47,38 @@ export function useAuthSWR<T>(
   url: string | null,
   options?: Partial<PublicConfiguration> | undefined
 ) {
-  const { isLoading: isAuthLoading, token, mutate: authMutate } = useAuth();
+  const {
+    isLoading: isAuthLoading,
+    token,
+    mutate: authMutate,
+    error: authError,
+  } = useAuth();
   const [isLoading, setIsLoading] = React.useState(true);
+  const queryClient = useQueryClient();
 
   const {
     data: swrData,
-    isLoading: isSwrLoading,
+    isLoading: isQueryLoading,
+    isInitialLoading,
     error,
-    mutate,
-    isValidating,
-  } = useSWR(
-    token && url ? [url] : null,
-    ([url]) => {
+  } = useQuery<AxiosResponse, AxiosError>({
+    queryKey: [url, token],
+    queryFn: async () => {
+      const u = url!;
       console.log("calling", url);
-      return axios.get(url, {
+      return await axios.get(u, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
     },
-    {
-      keepPreviousData: true,
-      ...(options as any),
-    }
+    enabled: token != null && url != null && authError == null,
+    keepPreviousData: true,
+  });
+
+  const mutate = React.useCallback(
+    () => queryClient.invalidateQueries({ queryKey: [url] }),
+    [queryClient, url]
   );
 
   const [data, setData] = React.useState(swrData?.data);
@@ -79,20 +89,18 @@ export function useAuthSWR<T>(
     } else if (!token || error?.response?.status == 401) {
       setData(null);
     }
+
     if (token && error?.response?.status == 401) {
       authMutate();
     }
 
-    // console.log({isAuthLoading, isSwrLoading, data})
-    // if (data == null) {
-    setIsLoading(isAuthLoading || isSwrLoading);
-    // }
-  }, [token, swrData, error, isAuthLoading, isSwrLoading]);
+    // console.log({ token, isQueryLoading, isInitialLoading });
+    setIsLoading((isAuthLoading || isInitialLoading) && authError == null);
+  }, [token, swrData, error, isAuthLoading, isQueryLoading, authError]);
 
   return {
     isLoading,
     // isLoading: isAuthLoading || isSwrLoading,
-    isValidating,
     data: data as T | null,
     error,
     mutate,

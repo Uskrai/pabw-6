@@ -1,4 +1,5 @@
 import CircularProgress from "@mui/material/CircularProgress";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React, { Suspense } from "react";
 import {
   createBrowserRouter,
@@ -13,6 +14,8 @@ import { useAuth, useProvidedAuth } from "./hooks/useAuth";
 import { useUser } from "./hooks/useUser";
 import { UserRole } from "./models/User";
 import "react-toastify/dist/ReactToastify.css";
+import axios from "axios";
+import { ConfirmProvider } from "material-ui-confirm";
 
 const Landing = React.lazy(() => import("./Landing"));
 const Product = React.lazy(() => import("./Product"));
@@ -83,29 +86,52 @@ const ProtectedRoute = ({
 };
 
 const account = (role: "Customer" | "Courier") => {
-  return {
-    path: `/admin/account/${role.toLowerCase()}`,
+  return [
+    {
+      path: `/admin/account/${role.toLowerCase()}`,
+      element: (
+        <ProtectedRoute login={true} role="Admin">
+          <AccountIndex role={role} />
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: `/admin/account/${role.toLowerCase()}/create`,
+      element: <AccountCreate role={role} />,
+    },
+    {
+      path: `/admin/account/${role.toLowerCase()}/:id`,
+      element: <AccountShow role={role} />,
+    },
+    {
+      path: `/admin/account/${role.toLowerCase()}/:id/edit`,
+      element: <AccountEdit role={role}/>,
+    },
+  ];
+};
+
+const products = [
+  {
+    path: "/user/product",
     element: (
-      <ProtectedRoute login={true} role="Admin">
-        <AccountIndex role={role} />
+      <ProtectedRoute login={true}>
+        <ProductIndex />
       </ProtectedRoute>
     ),
-    children: [
-      {
-        path: `/admin/account/${role.toLowerCase()}/create`,
-        element: <AccountCreate role={role} />,
-      },
-      {
-        path: `/admin/account/${role.toLowerCase()}/:id`,
-        element: <AccountShow role={role} />,
-      },
-      {
-        path: `/admin/account/${role.toLowerCase()}/:id/edit`,
-        element: <AccountEdit />,
-      },
-    ],
-  };
-};
+  },
+  {
+    path: "/user/product/:id",
+    element: <ProductShow />,
+  },
+  {
+    path: "/user/product/create",
+    element: <ProductCreate />,
+  },
+  {
+    path: "/user/product/:id/edit",
+    element: <ProductEdit />,
+  },
+];
 
 const router = createBrowserRouter([
   {
@@ -136,7 +162,7 @@ const router = createBrowserRouter([
   {
     path: "/user/order",
     element: (
-      <ProtectedRoute login={true} role="Customer">
+      <ProtectedRoute login={true} role={["Customer", "Admin"]}>
         <OrderIndex />
       </ProtectedRoute>
     ),
@@ -144,28 +170,6 @@ const router = createBrowserRouter([
       {
         path: "/user/order/:id",
         element: <OrderShow />,
-      },
-    ],
-  },
-  {
-    path: "/user/product",
-    element: (
-      <ProtectedRoute login={true}>
-        <ProductIndex />
-      </ProtectedRoute>
-    ),
-    children: [
-      {
-        path: "/user/product/:id",
-        element: <ProductShow />,
-      },
-      {
-        path: "/user/product/create",
-        element: <ProductCreate />,
-      },
-      {
-        path: "/user/product/:id/edit",
-        element: <ProductEdit />,
       },
     ],
   },
@@ -191,8 +195,9 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-  account("Customer"),
-  account("Courier"),
+  ...account("Customer"),
+  ...account("Courier"),
+  ...products,
   {
     path: "/courier/delivery",
     element: (
@@ -209,16 +214,35 @@ const router = createBrowserRouter([
   },
 ]);
 
-const App = () => {
-  const auth = useProvidedAuth();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      queryFn: ({ queryKey }) => {
+        return axios.get(queryKey[0] as any);
+      },
+    },
+  },
+});
 
+const ProvidedAuth = (props: React.PropsWithChildren) => {
+  const auth = useProvidedAuth();
   return (
-    <Suspense fallback={<CircularProgress />}>
-      <AuthContext.Provider value={auth}>
-        <RouterProvider router={router} />
-        <ToastContainer />
-      </AuthContext.Provider>
-    </Suspense>
+    <AuthContext.Provider value={auth}>{props.children}</AuthContext.Provider>
+  );
+};
+
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ConfirmProvider>
+        <Suspense fallback={<CircularProgress />}>
+          <ProvidedAuth>
+            <RouterProvider router={router} />
+            <ToastContainer />
+          </ProvidedAuth>
+        </Suspense>
+      </ConfirmProvider>
+    </QueryClientProvider>
   );
 };
 

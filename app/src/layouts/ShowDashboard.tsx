@@ -4,6 +4,7 @@ import Typography from "@mui/material/Typography";
 
 import ExitToApp from "@mui/icons-material/ExitToApp";
 import AppDashboard from "@/layouts/AppDashboard";
+import AppBar from "@/AppBar";
 // import Link from "@mui/material/Link";
 // import Add from "@mui/icons-material/Add";
 // import FormControl from "@mui/material/FormControl";
@@ -15,7 +16,8 @@ interface Props {
 
 export default function Index(props: React.PropsWithChildren<Props>) {
   return (
-    <AppDashboard title={props.title}>
+    <>
+      <AppBar />
       <div className="pb-12 mx-0 md:mx-20">
         <div className="mx-auto">
           <div className="bg-white overflow-hidden shadow-xl sm:rounded-lg">
@@ -57,6 +59,6 @@ export default function Index(props: React.PropsWithChildren<Props>) {
           </div>
         </div>
       </div>
-    </AppDashboard>
+    </>
   );
 }

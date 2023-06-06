@@ -10,6 +10,7 @@ import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
 import Grid from "@mui/material/Grid";
 import { useUser } from "./hooks/useUser";
+import CircularProgress from "@mui/material/CircularProgress";
 
 export default function Landing() {
   const { data: productSwr } = useSWR<{ data: GetProduct }>(
@@ -23,6 +24,10 @@ export default function Landing() {
     () => productSwr?.data?.products.filter(it => it.user_id != user?.user?.id).map((it) => it).reverse(),
     [productSwr?.data, user?.user?.id]
   );
+
+  if (user.isLoading) {
+    return <CircularProgress />
+  }
 
   return (
     <div className="App">

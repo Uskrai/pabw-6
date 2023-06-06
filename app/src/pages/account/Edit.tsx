@@ -13,9 +13,10 @@ import { useAuthSWR, useMutateAuth } from "../../hooks/useSWR";
 import { User, UserForm } from "../../models/User";
 import Form from "./Form";
 import { handleError } from "@/utils/error-handler";
+import FormDashboard from "@/layouts/FormDashboard";
 
 interface Props {
-  // role: "Customer" | "Courier";
+  role: "Customer" | "Courier";
 }
 
 export default function EditProduct(props: Props) {
@@ -33,7 +34,7 @@ export default function EditProduct(props: Props) {
   const form = useForm<UserForm>({
     defaultValues: {
       email: account?.email,
-      role: account?.role ?? "",
+      role: props?.role ?? "",
     },
   });
 
@@ -72,7 +73,7 @@ export default function EditProduct(props: Props) {
   }
 
   return (
-    <Grid direction="column">
+    <FormDashboard title={`Edit ${props.role}`}>
       <Form
         form={form}
         withPassword={true}
@@ -98,32 +99,27 @@ export default function EditProduct(props: Props) {
         }}
       />
 
-      <Grid item>
-        <FormControl>
-          <TextField
-            {...balanceForm.register("balance", {
-              valueAsNumber: true,
-              // minLength: {
-              //   value: 8,
-              //   message: "Password harus lebih atau sama dengan 8",
-              // },
-            })}
-            type="number"
-            label={"Tambah Balance"}
-            defaultValue={balanceForm.formState.defaultValues?.balance}
-            sx={{ m: 2 }}
-            fullWidth
-            error={balanceForm.formState.errors.balance != null}
-            helperText={balanceForm.formState.errors.balance?.message}
-          />
-          <Button
-            disabled={balanceForm.formState.isSubmitting}
-            onClick={balanceForm.handleSubmit(handleError(onSubmitBalance))}
-          >
-            Submit
-          </Button>
-        </FormControl>
-      </Grid>
-    </Grid>
+      <TextField
+        {...balanceForm.register("balance", {
+          valueAsNumber: true,
+          // minLength: {
+          //   value: 8,
+          //   message: "Password harus lebih atau sama dengan 8",
+          // },
+        })}
+        type="number"
+        label={"Tambah Balance"}
+        defaultValue={balanceForm.formState.defaultValues?.balance}
+        sx={{ m: 2 }}
+        error={balanceForm.formState.errors.balance != null}
+        helperText={balanceForm.formState.errors.balance?.message}
+      />
+      <Button
+        disabled={balanceForm.formState.isSubmitting}
+        onClick={balanceForm.handleSubmit(handleError(onSubmitBalance))}
+      >
+        Submit
+      </Button>
+    </FormDashboard>
   );
 }

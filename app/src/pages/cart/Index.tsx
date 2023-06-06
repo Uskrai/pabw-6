@@ -1,6 +1,5 @@
 import axios from "axios";
 import React from "react";
-import useSWR, { mutate } from "swr";
 
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -28,6 +27,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Product } from "@/models/Product";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { handleError } from "@/utils/error-handler";
+import { useQueryClient } from "@tanstack/react-query";
 
 const AppBar = React.lazy(() => import("../../AppBar"));
 
@@ -68,7 +68,7 @@ const groupBy = <T, K extends keyof any>(arr: T[], key: (i: T) => K) =>
 
 export default function Index() {
   const user = useUser();
-  const { data, isLoading } = useAuthSWR<GetCart>("/api/v1/cart");
+  const { data, isLoading, mutate } = useAuthSWR<GetCart>("/api/v1/cart");
 
   const cartGroupedByMerchant: GroupedCart[] = React.useMemo(() => {
     return Object.entries(
@@ -80,11 +80,6 @@ export default function Index() {
       };
     });
   }, [data?.carts]);
-
-  // console.log(cartGroupedByMerchant);
-  // const { data }: { data: GetCart } = useSWR("/api/v1/cart", (url) =>
-  //   axios.get(url).then((it) => it.data)
-  // );
 
   return (
     <div>
@@ -210,6 +205,9 @@ function CartCard({ cart }: { cart: GroupedCart }) {
     products,
   ]);
 
+  const queryClient = useQueryClient();
+  const mutate = React.useCallback(() => queryClient.invalidateQueries({queryKey: ['/api/v1/cart']}), [queryClient])
+
   async function onDelete(index: number) {
     let cart = formCart.fields.at(index);
 
@@ -220,7 +218,8 @@ function CartCard({ cart }: { cart: GroupedCart }) {
     });
 
     formCart.remove(index);
-    mutate(["/api/v1/cart"]);
+    // mutate(["/api/v1/cart"]);
+    mutate()
   }
 
   async function onBuy(e: { cart: CartModelForm[] }) {
@@ -256,7 +255,7 @@ function CartCard({ cart }: { cart: GroupedCart }) {
         <div className="flex gap-2">
           <Typography variant="h5" className="flex gap-2">
             {/* <input type="checkbox" /> */}
-            {merchant?.email}
+            {merchant?.name}
           </Typography>
           {/* <CardHeader title={merchant?.email} /> */}
         </div>
@@ -283,22 +282,6 @@ function CartCard({ cart }: { cart: GroupedCart }) {
             return (
               <div key={it.id} className="flex gap-2 mb-3">
                 <label>
-                  {/* <Controller */}
-                  {/*   render={({ field }) => ( */}
-                  {/*     <input */}
-                  {/*       type="checkbox" */}
-                  {/*       {...field} */}
-                  {/*       value={undefined} */}
-                  {/*       checked={field.value} */}
-                  {/*       // {...form.register(`cart.${index}.checked`)} */}
-                  {/*       // defaultChecked={ */}
-                  {/*       //   form.formState.defaultValues?.cart?.at(index)?.checked */}
-                  {/*       // } */}
-                  {/*     /> */}
-                  {/*   )} */}
-                  {/*   control={form.control} */}
-                  {/*   name={`cart.${index}.checked`} */}
-                  {/* /> */}
                   <input
                     type="checkbox"
                     {...form.register(`cart.${index}.checked`)}

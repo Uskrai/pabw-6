@@ -21,16 +21,24 @@ export default function Form({
   return (
     <FormControl>
       <TextField
+        {...register("name", { required: "Nama harus di isi" })}
+        label={"Nama"}
+        defaultValue={formState.defaultValues?.email}
+        sx={{ m: 2 }}
+        error={formState.errors.name != null}
+        helperText={formState.errors.name?.message}
+      />
+      <TextField
         {...register("email", { required: "Email harus di isi" })}
         label={"Email"}
         defaultValue={formState.defaultValues?.email}
         sx={{ m: 2 }}
-        fullWidth
         error={formState.errors.email != null}
         helperText={formState.errors.email?.message}
       />
       <Select
         {...register("role")}
+        label="Role"
         sx={{ m: 2 }}
         defaultValue={formState.defaultValues?.role}
 
@@ -54,7 +62,6 @@ export default function Form({
             label={"Password"}
             defaultValue={formState.defaultValues?.password}
             sx={{ m: 2 }}
-            fullWidth
             error={formState.errors.password != null}
             helperText={formState.errors.password?.message}
           />
@@ -70,7 +77,6 @@ export default function Form({
             label={"Confirm Password"}
             defaultValue={formState.defaultValues?.confirm_password}
             sx={{ m: 2 }}
-            fullWidth
             error={formState.errors.confirm_password != null}
             helperText={formState.errors.confirm_password?.message}
           />
@@ -85,7 +91,6 @@ export default function Form({
         label={"Balance"}
         defaultValue={formState.defaultValues?.balance}
         sx={{ m: 2 }}
-        fullWidth
         error={formState.errors.balance != null}
         helperText={formState.errors.balance?.message}
       />
