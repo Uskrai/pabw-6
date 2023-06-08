@@ -10,10 +10,13 @@ pub mod user;
 pub mod tests {
     use std::{
         collections::HashSet,
-        sync::{Arc, Mutex},
+        sync::{atomic::AtomicUsize, Arc, Mutex},
     };
 
-    use axum::{extract::State, Json};
+    use axum::{
+        extract::{FromRef, State},
+        Json,
+    };
     use bson::oid::ObjectId;
     use mongodb::Client;
     use num_bigint::BigInt;
@@ -40,39 +43,20 @@ pub mod tests {
         session: crate::api::v1::auth::RefreshClaim,
         pub app_state: AppState,
 
+        // used to generate email
+        pub derive_count: Arc<AtomicUsize>,
+
         track_cleanup: Arc<Cleanup>,
     }
 
     pub struct Cleanup {
         database_name: String,
-        app_state: AppState,
+        // app_state: AppState,
     }
 
     impl Drop for Cleanup {
         fn drop(&mut self) {
             BOOTSTRAP_LOCK.lock().unwrap().remove(&self.database_name);
-            // let handle = tokio::runtime::Handle::current();
-            //
-            // let app_state = self.app_state.clone();
-            // let database_name = self.database_name.clone();
-            // std::thread::spawn(move || {
-            //     let rt = tokio::runtime::Builder::new_current_thread()
-            //         .enable_io()
-            //         .build()
-            //         .unwrap();
-            //     rt.block_on(async {
-            //         println!("dropping database");
-            //         app_state
-            //             .mongo_client
-            //             .database(&database_name)
-            //             .drop(None)
-            //             .await
-            //             .unwrap();
-            //         println!("database dropped");
-            //     });
-            // })
-            // .join()
-            // .unwrap();
         }
     }
 
@@ -137,9 +121,34 @@ pub mod tests {
                 user_password: password.to_string(),
                 session,
                 app_state: self.app_state.clone(),
+                derive_count: self.derive_count.clone(),
 
                 track_cleanup: self.track_cleanup.clone(),
             }
+        }
+
+        pub async fn derive_customer(&self) -> Bootstrap {
+            let count = self
+                .derive_count
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.derive(
+                &format!("customer-{count}@mail.com"),
+                "password",
+                UserRole::Customer,
+            )
+            .await
+        }
+
+        pub async fn derive_courier(&self) -> Bootstrap {
+            let count = self
+                .derive_count
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.derive(
+                &format!("courier-{count}@mail.com"),
+                "password",
+                UserRole::Courier,
+            )
+            .await
         }
 
         pub async fn with_balance(mut self, balance: Decimal) -> Self {
@@ -166,6 +175,13 @@ pub mod tests {
 
         pub fn connection(&self) -> &Client {
             &self.app_state.mongo_client
+        }
+
+        pub fn state<T>(&self) -> State<T>
+        where
+            T: FromRef<AppState>,
+        {
+            State(T::from_ref(&self.app_state))
         }
 
         pub fn product_collection(&self) -> State<ProductCollection> {
@@ -251,6 +267,49 @@ pub mod tests {
 
             transaction
         }
+
+        pub async fn create_confirmed_transaction(
+            &self,
+            merchant: &Self,
+            product: i64,
+        ) -> super::transaction::TransactionModel {
+            let transaction = self.create_transaction(merchant, product).await;
+
+            super::transaction::confirm_processing(
+                self.state(),
+                merchant.user_access(),
+                crate::util::PathObjectId(*transaction.id.clone()),
+            )
+            .await
+            .unwrap()
+            .0
+        }
+
+        pub async fn create_pickedup_transaction(
+            &self,
+            merchant: &Self,
+            courier: &Self,
+            product: i64,
+        ) -> super::transaction::TransactionModel {
+            let transaction = self.create_confirmed_transaction(merchant, product).await;
+
+            super::transaction::pickup(
+                self.state(),
+                courier.user_access(),
+                transaction.id.clone().into(),
+            )
+            .await
+            .unwrap();
+
+            super::transaction::show_order(
+                self.state(),
+                self.user_access(),
+                transaction.id.clone().into(),
+            )
+            .await
+            .unwrap()
+            .0
+        }
     }
 
     pub async fn create_user(
@@ -318,7 +377,7 @@ pub mod tests {
         // let track =
         let track_cleanup = Arc::new(Cleanup {
             database_name,
-            app_state: app_state.clone(),
+            // app_state: app_state.clone(),
         });
 
         Bootstrap {
@@ -326,6 +385,7 @@ pub mod tests {
             user_model: user,
             user_password: password.to_string(),
             session,
+            derive_count: Arc::new(AtomicUsize::new(0)),
 
             track_cleanup,
         }

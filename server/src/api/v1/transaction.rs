@@ -40,7 +40,7 @@ pub struct ProductTransaction {
     pub quantity: BigInt,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(tag = "type", content = "content")]
 pub enum TransactionStatusType {
     WaitingForMerchantConfirmation,
@@ -68,11 +68,12 @@ impl TransactionStatus {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct TransactionModel {
     pub id: ObjectIdString,
     pub user_id: ObjectIdString,
     pub merchant_id: ObjectIdString,
+    pub courier_id: Option<ObjectIdString>,
     pub price: DecimalString,
     pub status: Vec<TransactionStatusModel>,
     pub products: Vec<ProductTransactionModel>,
@@ -81,7 +82,7 @@ pub struct TransactionModel {
     pub updated_at: FormattedDateTime,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct TransactionStatusModel {
     pub r#type: TransactionStatusType,
     date: FormattedDateTime,
@@ -96,7 +97,7 @@ impl From<TransactionStatus> for TransactionStatusModel {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct ProductTransactionModel {
     pub id: ObjectIdString,
     pub quantity: BigIntString,
@@ -108,6 +109,7 @@ impl From<Transaction> for TransactionModel {
             id: value.id.into(),
             user_id: value.user_id.into(),
             merchant_id: value.merchant_id.into(),
+            courier_id: value.courier_id.map(Into::into),
             price: value.price.into(),
             status: value.status.into_iter().map(|it| it.into()).collect(),
             products: value.products.into_iter().map(|it| it.into()).collect(),
@@ -171,8 +173,8 @@ pub async fn index_order(
 }
 
 pub async fn show_order(
-    user: UserAccess,
     State(collection): State<TransactionCollection>,
+    user: UserAccess,
     PathObjectId(path): PathObjectId,
 ) -> Result<Json<TransactionModel>, Error> {
     let transaction = collection
@@ -441,7 +443,7 @@ pub async fn confirm_processing(
     Ok(Json(transaction.into()))
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct DeliveryResponse {
     pub id: ObjectIdString,
     pub user_id: ObjectIdString,
@@ -690,7 +692,11 @@ mod tests {
     use num_bigint::BigInt;
     use rust_decimal::Decimal;
 
-    use crate::{api::v1::auth::UserRole, error::Error};
+    use crate::{
+        api::v1::{auth::UserRole, transaction::TransactionStatusType},
+        error::Error,
+        util::PathObjectId,
+    };
 
     use super::super::tests::bootstrap;
 
@@ -872,5 +878,390 @@ mod tests {
         .await
         .expect_err("stock less than quantity");
         assert_matches!(err, Error::CustomStr(_, "quantity must be less than stock"));
+    }
+
+    #[tokio::test]
+    pub async fn test_merchant_can_see_sale() {
+        let bootstrap = bootstrap().await.derive_customer().await;
+
+        let customer = bootstrap
+            .derive_customer()
+            .await
+            .with_balance(Decimal::from(20_000))
+            .await;
+
+        let transaction = customer.create_transaction(&bootstrap, 2).await;
+
+        let Json(show) = super::show(
+            bootstrap.state(),
+            bootstrap.user_access(),
+            PathObjectId(*transaction.id.clone()),
+        )
+        .await
+        .expect("merchant can see sale");
+
+        assert_eq!(show, transaction);
+
+        let Json(vec) = super::index(bootstrap.state(), bootstrap.user_access())
+            .await
+            .expect("merchant can see sale");
+        assert_eq!(vec.transactions.len(), 1);
+        assert_eq!(vec.transactions[0], transaction);
+    }
+
+    #[tokio::test]
+    pub async fn test_customer_cannot_see_other_user_sale() {
+        let bootstrap = bootstrap().await.derive_customer().await;
+
+        let customer = bootstrap
+            .derive_customer()
+            .await
+            .with_balance(Decimal::from(20_000))
+            .await;
+
+        let transaction = customer.create_transaction(&bootstrap, 2).await;
+
+        let error = super::show(
+            bootstrap.state(),
+            customer.user_access(),
+            PathObjectId(*transaction.id.clone()),
+        )
+        .await
+        .expect_err("customer cannot see sale");
+        assert_matches!(error, Error::Forbidden);
+
+        let Json(vec) = super::index(bootstrap.state(), customer.user_access())
+            .await
+            .expect("customer without sale can still see sale");
+        assert_eq!(vec.transactions.len(), 0);
+    }
+
+    #[tokio::test]
+    pub async fn test_customer_can_see_order() {
+        let bootstrap = bootstrap().await.derive_customer().await;
+
+        let customer = bootstrap
+            .derive_customer()
+            .await
+            .with_balance(Decimal::from(20_000))
+            .await;
+
+        let transaction = customer.create_transaction(&bootstrap, 2).await;
+
+        let Json(show) = super::show_order(
+            bootstrap.state(),
+            customer.user_access(),
+            PathObjectId(*transaction.id.clone()),
+        )
+        .await
+        .expect("customer cannot see sale");
+        assert_eq!(transaction, show);
+
+        let Json(vec) = super::index_order(bootstrap.state(), customer.user_access())
+            .await
+            .expect("customer without sale can still see sale");
+        assert_eq!(vec.orders.len(), 1);
+        assert_eq!(vec.orders[0], transaction);
+    }
+
+    #[tokio::test]
+    pub async fn test_customer_cannot_see_other_user_order() {
+        let bootstrap = bootstrap().await.derive_customer().await;
+
+        let customer = bootstrap
+            .derive_customer()
+            .await
+            .with_balance(Decimal::from(20_000))
+            .await;
+
+        let transaction = customer.create_transaction(&bootstrap, 2).await;
+
+        let error = super::show_order(
+            bootstrap.state(),
+            bootstrap.user_access(),
+            PathObjectId(*transaction.id.clone()),
+        )
+        .await
+        .expect_err("customer cannot see order");
+        assert_matches!(error, Error::Forbidden);
+
+        let Json(vec) = super::index_order(bootstrap.state(), bootstrap.user_access())
+            .await
+            .expect("customer without sale can still see order");
+        assert_eq!(vec.orders.len(), 0);
+    }
+
+    #[tokio::test]
+    pub async fn test_merchant_can_confirm() {
+        let bootstrap = bootstrap().await.derive_customer().await;
+
+        let customer = bootstrap
+            .derive_customer()
+            .await
+            .with_balance(Decimal::from(20_000))
+            .await;
+
+        let transaction = customer.create_transaction(&bootstrap, 2).await;
+
+        let Json(result) = super::confirm_processing(
+            bootstrap.state(),
+            bootstrap.user_access(),
+            PathObjectId(*transaction.id.clone()),
+        )
+        .await
+        .expect("merchant can confirm transaction");
+
+        assert_matches!(
+            result.status.last().unwrap().r#type,
+            TransactionStatusType::WaitingForCourier
+        );
+    }
+
+    #[tokio::test]
+    pub async fn test_merchant_cannot_confirm_confirmed_transaction() {
+        let bootstrap = bootstrap().await.derive_customer().await;
+
+        let customer = bootstrap
+            .derive_customer()
+            .await
+            .with_balance(Decimal::from(20_000))
+            .await;
+
+        let transaction = customer.create_transaction(&bootstrap, 2).await;
+
+        let Json(result) = super::confirm_processing(
+            bootstrap.state(),
+            bootstrap.user_access(),
+            PathObjectId(*transaction.id.clone()),
+        )
+        .await
+        .unwrap();
+
+        assert_matches!(
+            result.status.last().unwrap().r#type,
+            TransactionStatusType::WaitingForCourier
+        );
+
+        let error = super::confirm_processing(
+            bootstrap.state(),
+            bootstrap.user_access(),
+            PathObjectId(*transaction.id.clone()),
+        )
+        .await
+        .expect_err("transaction already confirmed");
+        assert_matches!(error, Error::Forbidden);
+    }
+
+    #[tokio::test]
+    pub async fn test_courier_can_see_not_picked_up_transaction() {
+        let bootstrap = bootstrap().await.derive_customer().await;
+
+        let customer = bootstrap
+            .derive_customer()
+            .await
+            .with_balance(Decimal::from(20_000))
+            .await;
+
+        let courier = bootstrap.derive_courier().await;
+
+        let transaction = customer.create_confirmed_transaction(&bootstrap, 2).await;
+
+        let Json(show) = super::show_delivery(
+            bootstrap.state(),
+            courier.user_access(),
+            transaction.id.clone().into(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(show.id, transaction.id);
+
+        let Json(index) = super::index_delivery(bootstrap.state(), courier.user_access())
+            .await
+            .unwrap();
+
+        assert_eq!(index.deliveries.len(), 1);
+        assert_eq!(index.deliveries[0], show);
+    }
+
+    #[tokio::test]
+    pub async fn test_courier_can_pickup_confirmed_transaction() {
+        let bootstrap = bootstrap().await.derive_customer().await;
+
+        let customer = bootstrap
+            .derive_customer()
+            .await
+            .with_balance(Decimal::from(20_000))
+            .await;
+
+        let courier = bootstrap.derive_courier().await;
+
+        let transaction = customer.create_confirmed_transaction(&bootstrap, 2).await;
+
+        super::pickup(
+            bootstrap.state(),
+            courier.user_access(),
+            transaction.id.clone().into(),
+        )
+        .await
+        .expect("courier can pickup");
+
+        let Json(show) = super::show_order(
+            bootstrap.state(),
+            customer.user_access(),
+            transaction.id.clone().into(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(show.courier_id, Some(courier.user_id().into()));
+        assert_matches!(
+            show.status.last().unwrap().r#type,
+            TransactionStatusType::PickedUpByCourier
+        );
+    }
+
+    #[tokio::test]
+    pub async fn test_courier_cannot_see_transaction_picked_by_other_courier() {
+        let bootstrap = bootstrap().await.derive_customer().await;
+
+        let customer = bootstrap
+            .derive_customer()
+            .await
+            .with_balance(Decimal::from(20_000))
+            .await;
+
+        let courier = bootstrap.derive_courier().await;
+        let second_courier = bootstrap.derive_courier().await;
+
+        let transaction = customer
+            .create_pickedup_transaction(&bootstrap, &courier, 2)
+            .await;
+
+        let error = super::show_delivery(
+            bootstrap.state(),
+            second_courier.user_access(),
+            transaction.id.clone().into(),
+        )
+        .await
+        .expect_err("courier cannot see other courier delivery");
+        assert_matches!(error, Error::Forbidden);
+
+        let Json(index) = super::index_delivery(bootstrap.state(), second_courier.user_access())
+            .await
+            .unwrap();
+        assert_eq!(index.deliveries.len(), 0);
+    }
+
+    #[tokio::test]
+    pub async fn test_courier_change_delivery_status_path() {
+        let bt = bootstrap().await.derive_customer().await;
+
+        let customer = bt
+            .derive_customer()
+            .await
+            .with_balance(Decimal::from(20_000))
+            .await;
+
+        let courier = bt.derive_courier().await;
+
+        let ok = [
+            vec![
+                TransactionStatusType::SendBackToMerchant,
+                TransactionStatusType::ArrivedInMerchant,
+            ],
+            vec![TransactionStatusType::ArrivedInDestination],
+        ];
+
+        for statuses in ok {
+            let transaction = customer.create_pickedup_transaction(&bt, &courier, 2).await;
+
+            for it in statuses {
+                super::change_delivery(
+                    bt.state(),
+                    bt.state(),
+                    courier.user_access(),
+                    transaction.id.clone().into(),
+                    Json(super::ChangeDeliveryRequest { r#type: it }),
+                )
+                .await
+                .unwrap();
+            }
+        }
+
+        let all = [
+            TransactionStatusType::WaitingForMerchantConfirmation,
+            TransactionStatusType::ProcessingInMerchant,
+            TransactionStatusType::WaitingForCourier,
+            TransactionStatusType::PickedUpByCourier,
+            TransactionStatusType::SendBackToMerchant,
+            TransactionStatusType::ArrivedInMerchant,
+            TransactionStatusType::ArrivedInDestination,
+            TransactionStatusType::ArrivedInDestinationConfirmed,
+        ];
+
+        let err = [
+            (
+                vec![],
+                all.iter()
+                    .filter(|it| {
+                        !matches!(
+                            it,
+                            TransactionStatusType::SendBackToMerchant
+                                | TransactionStatusType::ArrivedInDestination
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            ),
+            (
+                vec![TransactionStatusType::SendBackToMerchant],
+                all.iter()
+                    .filter(|it| !matches!(it, TransactionStatusType::ArrivedInMerchant))
+                    .collect::<Vec<_>>(),
+            ),
+            (
+                vec![
+                    TransactionStatusType::SendBackToMerchant,
+                    TransactionStatusType::ArrivedInMerchant,
+                ],
+                all.iter().collect(),
+            ),
+            (
+                vec![
+                    TransactionStatusType::ArrivedInDestination,
+                ],
+                all.iter().collect(),
+            ),
+        ];
+
+        for (process, test) in err {
+            let transaction = customer.create_pickedup_transaction(&bt, &courier, 2).await;
+
+            for it in process {
+                super::change_delivery(
+                    bt.state(),
+                    bt.state(),
+                    courier.user_access(),
+                    transaction.id.clone().into(),
+                    Json(super::ChangeDeliveryRequest { r#type: it }),
+                )
+                .await
+                .unwrap();
+            }
+
+            for it in test {
+                let error = super::change_delivery(
+                    bt.state(),
+                    bt.state(),
+                    courier.user_access(),
+                    transaction.id.clone().into(),
+                    Json(super::ChangeDeliveryRequest { r#type: it.clone() }),
+                )
+                .await
+                .expect_err("should error");
+
+                assert_matches!(error, Error::Forbidden);
+            }
+        }
     }
 }
